@@ -1,9 +1,8 @@
 #include "MemPool.h"
 
 namespace AsioNet {
-	const unsigned int DEFAULT_SEND_BUFFER_SIZE = 1024 * 8;
+	constexpr unsigned int DEFAULT_SEND_BUFFER_SIZE = 1024 * 8;
 	const unsigned int DEFAULT_SEND_BUFFER_POOL_EXTEND_SIZE = 8;
-	const unsigned int DEFAULT_RECV_BUFFER_SIZE = 65536;	// max unsigned short
 
 	template<size_t V_BUFFER_SIZE>
 	struct BlockElem {
@@ -50,7 +49,7 @@ namespace AsioNet {
 				if (tail && tail == detachedHead) {
 					tail = tail->next;	// nil
 				}
-				head = head->next;
+				head = head->next;	// could be nil
 				return detachedHead;
 			}
 			return nullptr;
@@ -60,6 +59,7 @@ namespace AsioNet {
 			if (detachedHead)
 			{
 				m_pool.Del(detachedHead);
+				detachedHead = nullptr;
 			}
 		}
 		void Push(const char* data, size_t trans)
@@ -87,7 +87,7 @@ namespace AsioNet {
 					tail->next = m_pool.New();
 					tail = tail->next;
 				}
-			} while (copied >= trans);
+			} while (copied < trans);
 		}
 	private:
 		BlockElem<V_BUFFER_SIZE>* head, * tail, * detachedHead;

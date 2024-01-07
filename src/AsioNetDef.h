@@ -1,5 +1,10 @@
 #pragma once
 
+#include <boost/asio.hpp>
+#include <boost/bind/bind.hpp>
+#include <mutex>
+extern std::mutex g_lock;
+
 namespace AsioNet {
 	// make sure is x64
 	//static_assert(sizeof(void*) == 8);
@@ -27,16 +32,21 @@ namespace AsioNet {
 	f float
 	lf doubl
 	*/
-	using namespace boost::asio;
-	using namespace boost::system;
-	using namespace boost::asio::detail::socket_ops;
+	//using namespace boost::asio;
+	//using namespace boost::system;
+	//using namespace boost::asio::detail::socket_ops;
+	using io_ctx = boost::asio::io_context;
+	using TcpSock = boost::asio::ip::tcp::socket;
+	using TcpEndPoint = boost::asio::ip::tcp::endpoint;
+
+	using NetErr = boost::system::error_code;
 	
 #define AN_INTERFACE
 #define AN_DEFAULT_HANDLER
 	struct AN_Msg {
-		unsigned short len;	// max 65535 = 1024 * 64
-		char data[0];
+		unsigned short len;
+		// char data[0];
 	};
-
+	constexpr size_t AN_MSG_MAX_SIZE = 1 << (sizeof(AN_Msg::len) * 8);
 
 }

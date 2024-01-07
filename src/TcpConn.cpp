@@ -1,12 +1,14 @@
 #include "TcpConn.h"
+#include <boost/bind/bind.hpp>
+
 #include <iostream>
-#include <utility>
+#include <utility>	// std::move
 #include <string>
 
 namespace AsioNet
 {
 	using namespace boost::placeholders;
-	void out_err_handler(const error_code &ec)
+	void out_err_handler(const NetErr &ec)
 	{
 		printf("error:%s\n", ec.message().c_str());
 	}
@@ -15,30 +17,42 @@ namespace AsioNet
 		printf("recv[%lld],data[%s]\n", trans, std::string(data, trans).c_str());
 	}
 
-	TcpConn::TcpConn(io_context &ctx) : sock_(ctx)
+	TcpConn::TcpConn(io_ctx& ctx) : sock_(ctx)
 	{
 	}
 
-	TcpConn::TcpConn(ip::tcp::socket &&sock) : sock_{std::move(sock)}
+	TcpConn::TcpConn(TcpSock &&sock) : sock_{std::move(sock)}
 	{
 		err_handler = out_err_handler;
 		net_proc = out_net_proc;
 	}
 
+	TcpConn::~TcpConn()
+	{
+		std::cout << "conn destory" << std::endl;
+		Close();
+	}
 	bool TcpConn::Write(const char *data, size_t trans)
 	{
-		auto len = host_to_network_short(static_cast<decltype(AN_Msg::len)>(trans));
-		if (len != trans)
+		if (trans > AN_MSG_MAX_SIZE)
 		{
+			std::cout << "too big" << std::endl;
 			return false;
 		}
+		/*if (!sock_.is_open())
+		{
+			return false;
+		}*/
+		auto netLen = boost::asio::detail::socket_ops::
+			host_to_network_short(static_cast<decltype(AN_Msg::len)>(trans));
+
 		std::lock_guard<std::mutex> guard(sendLock);
-		sendBuffer.Push((const char *)(&len), sizeof(AN_Msg::len));
+		sendBuffer.Push((const char *)(&netLen), sizeof(AN_Msg::len));
 		sendBuffer.Push(data, trans);
 		auto head = sendBuffer.DetachHead();
 		if (head)
 		{
-			async_write(sock_, buffer(head->buffer, head->pos),
+			async_write(sock_, boost::asio::buffer(head->buffer, head->pos),
 						boost::bind(&TcpConn::write_handler, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
 		}
 		return true;
@@ -56,7 +70,7 @@ namespace AsioNet
 		*/
 		// sock_.async_write_some(buffer(acData, iSize), boost::bind(&TcpConn::send_handler, this, boost::placeholders::_1, boost::placeholders::_2));
 	}
-	void TcpConn::write_handler(const error_code &ec, size_t)
+	void TcpConn::write_handler(const NetErr &ec, size_t)
 	{
 		if (ec)
 		{
@@ -71,7 +85,7 @@ namespace AsioNet
 			auto head = sendBuffer.DetachHead();
 			if (head)
 			{
-				async_write(sock_, buffer(head->buffer, head->pos),
+				async_write(sock_, boost::asio::buffer(head->buffer, head->pos),
 							boost::bind(&TcpConn::write_handler, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
 			}
 		}
@@ -79,25 +93,31 @@ namespace AsioNet
 
 	void TcpConn::StartRead()
 	{
+		// std::cout << "start read from port:" << sock_.local_endpoint().port() << std::endl;
 		// if sock_ is not open?
-		async_read(sock_, buffer(readBuffer, sizeof(AN_Msg::len)),
+		async_read(sock_, boost::asio::buffer(readBuffer, sizeof(AN_Msg::len)),
 				   boost::bind(&TcpConn::read_head_handler, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
 	}
 
-	void TcpConn::read_head_handler(const error_code &ec, size_t)
+	void TcpConn::read_head_handler(const NetErr& ec, size_t)
 	{
 		if (ec)
 		{
-			err_handler(ec);
+			printf("error:%s\n", ec.message().c_str());
+			// is use err_handler,dump occur
+			//err_handler(ec);
 			return;
 		}
 
-		auto len = *((decltype(AN_Msg::len) *)readBuffer);
-		async_read(sock_, buffer(readBuffer, len),
+		auto netLen = *((decltype(AN_Msg::len) *)readBuffer);
+		auto hostLen = boost::asio::detail::socket_ops::
+			network_to_host_short(netLen);
+
+		async_read(sock_, boost::asio::buffer(readBuffer, hostLen),
 				   boost::bind(&TcpConn::read_body_handler, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
 	}
 
-	void TcpConn::read_body_handler(const error_code &ec, size_t trans)
+	void TcpConn::read_body_handler(const NetErr &ec, size_t trans)
 	{
 		if (ec)
 		{
@@ -105,14 +125,17 @@ namespace AsioNet
 			return;
 		}
 		net_proc(readBuffer, trans);
-		async_read(sock_, buffer(readBuffer, sizeof(AN_Msg::len)),
+		async_read(sock_, boost::asio::buffer(readBuffer, sizeof(AN_Msg::len)),
 				   boost::bind(&TcpConn::read_head_handler, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
 	}
 
 	void TcpConn::Close()
 	{
-		sock_.shutdown(ip::tcp::socket::shutdown_both);
-		sock_.close();
+		if (sock_.is_open())
+		{
+			sock_.shutdown(TcpSock::shutdown_both);
+			sock_.close();	//close twice will occur err
+		}
 	}
 
 }

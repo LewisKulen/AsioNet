@@ -8,9 +8,11 @@
 
 unsigned short port_ = 8888;
 
+std::mutex g_lock;
+
 void StartServer()
 {
-    AsioNet::io_context ctx;
+    AsioNet::io_ctx ctx;
     AsioNet::TCPServer s(ctx);
     s.Serve(port_);
     ctx.run();
@@ -19,11 +21,16 @@ void StartServer()
 
 void StartClient()
 {
-    AsioNet::io_context ctx;
+    AsioNet::io_ctx ctx;
     AsioNet::TcpClient c(ctx);
     c.Connect("127.0.0.1",8888);
-    
-    std::thread([&ctx](){
+    AsioNet::TcpClient c1(ctx);
+    c1.Connect("127.0.0.1", 8888);
+
+    /*AsioNet::TcpClient c2(ctx);
+    c2.Send("lala", 4);*/
+
+    auto t1 = std::thread([&ctx](){
         ctx.run();
     });
 
@@ -31,20 +38,23 @@ void StartClient()
     std::string s;
     int i = 1;
     while(s.length() < tot) {
-        s = s + std::to_string(i++);
+        auto temp = std::to_string(i++);
+        for (auto ch : temp)
+        {
+            s.push_back(ch);
+        }
     }
     
     int pos = 0;
-    int loop = 1;
-    while(true)
+    int loop = 3;
+    while(loop--)
     {
-        if (pos >= s.length()){
-            break;
-        }
-        c.Send(s.c_str() + pos,loop);
+        c.Send(s.c_str(),100);
+        c1.Send(s.c_str(), 6);
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     c.Close();
+    t1.join();
     std::cout << "client finish" << std::endl;
 }
 

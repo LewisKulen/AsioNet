@@ -5,11 +5,12 @@ namespace AsioNet
 {
 	class TCPServer {
 	public:
-		TCPServer(io_context& context);
+		TCPServer(io_ctx& context);
+		~TCPServer();
 		void Serve(unsigned short port);
 	protected:
-		void accept_handler(const error_code& error,ip::tcp::socket& cli);
+		void accept_handler(const NetErr& error,TcpSock cli);
 	private:
-		ip::tcp::acceptor m_acceptor;
+		boost::asio::ip::tcp::acceptor m_acceptor;
 	};
 }

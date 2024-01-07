@@ -1,8 +1,6 @@
 #pragma once
 
-#include <boost/asio.hpp>
 #include <boost/noncopyable.hpp>
-#include <boost/bind.hpp>
 
 #include "AsioNetDef.h"
 #include "BlockBuffer.h"
@@ -21,32 +19,32 @@ namespace AsioNet
 
 	struct IConnectHandler
 	{
-		virtual void operator()(const error_code &error) = 0;
+		virtual void operator()(const NetErr &error) = 0;
 		virtual ~IConnectHandler(){};
 	};
 	struct IAcceptHandler
 	{
-		virtual void operator()(const error_code &error) = 0;
+		virtual void operator()(const NetErr &error) = 0;
 		virtual ~IAcceptHandler(){};
 	};
 	struct IWriteHandler
 	{
-		virtual void operator()(const error_code &error, std::size_t bytes_transferred) = 0;
+		virtual void operator()(const NetErr &error, std::size_t bytes_transferred) = 0;
 		virtual ~IWriteHandler(){};
 	};
 	struct IReadHandler
 	{
-		virtual void operator()(const error_code &error, std::size_t bytes_transferred) = 0;
+		virtual void operator()(const NetErr &error, std::size_t bytes_transferred) = 0;
 		virtual ~IReadHandler(){};
 	};
 
 	struct AN_INTERFACE IANCompleteHandler
 	{
 		virtual ~IANCompleteHandler() {}
-		virtual void connect_handler(const error_code &error) = 0;
-		virtual void accept_handler(const error_code &error) = 0;
-		virtual void read_handler(const error_code &error, std::size_t bytes_transferred) = 0;
-		virtual void write_handler(const error_code &error, std::size_t bytes_transferred) = 0;
+		virtual void connect_handler(const NetErr &error) = 0;
+		virtual void accept_handler(const NetErr &error) = 0;
+		virtual void read_handler(const NetErr &error, std::size_t bytes_transferred) = 0;
+		virtual void write_handler(const NetErr &error, std::size_t bytes_transferred) = 0;
 	};
 
 	// 只能由client/server创建
@@ -60,21 +58,21 @@ namespace AsioNet
 		bool Write(const char *data, size_t trans);
 		void StartRead(); // start read loop
 
-		TcpConn(io_context &ctx);		 // for client
-		TcpConn(ip::tcp::socket &&sock); // for server
-		
+		TcpConn(io_ctx& ctx);		 // for client
+		TcpConn(TcpSock &&sock); // for server
+		~TcpConn();
 	protected:
-		void read_head_handler(const error_code &, size_t);
-		void read_body_handler(const error_code &, size_t);
-		void write_handler(const error_code &, size_t);
-		void (*err_handler)(const error_code &);
+		void read_head_handler(const NetErr&, size_t);
+		void read_body_handler(const NetErr &, size_t);
+		void write_handler(const NetErr &, size_t);
+		void (*err_handler)(const NetErr &);
 		void (*net_proc)(const char *data, size_t trans);
 
 	private:
-		ip::tcp::socket sock_;
+		TcpSock sock_;
 		std::mutex sendLock;
 		BlockSendBuffer<DEFAULT_SEND_BUFFER_SIZE, DEFAULT_SEND_BUFFER_POOL_EXTEND_SIZE> sendBuffer;
-		char readBuffer[1 << (sizeof(AN_Msg::len) * 8)];
+		char readBuffer[AN_MSG_MAX_SIZE];
 	};
 
 	// NewTCPConn()

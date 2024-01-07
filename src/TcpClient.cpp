@@ -1,19 +1,19 @@
 #include "TcpClient.h"
+
 #include <iostream>
 
 namespace AsioNet
 {
-	TcpClient::TcpClient(io_context &ctx) : conn(ctx)
-	{
-	}
+	TcpClient::TcpClient(io_ctx&ctx):conn(std::make_shared<TcpConn>(ctx))
+	{}
 
 	void TcpClient::Connect(std::string addr, unsigned short port)
 	{
-		ip::tcp::endpoint ep(ip::address::from_string(addr.c_str()), port);
-		conn.sock_.async_connect(ep, boost::bind(&TcpClient::connect_handler, this, boost::placeholders::_1));
+		TcpEndPoint ep(boost::asio::ip::address::from_string(addr.c_str()), port);
+		conn->sock_.async_connect(ep, boost::bind(&TcpClient::connect_handler, this, boost::placeholders::_1));
 	}
 
-	void TcpClient::connect_handler(const error_code &ec)
+	void TcpClient::connect_handler(const NetErr &ec)
 	{
 		if (ec)
 		{
@@ -21,17 +21,22 @@ namespace AsioNet
 			return;
 		}
 
-		std::cout << "connect to : " << conn.sock_.remote_endpoint().address().to_string() << ":" << conn.sock_.remote_endpoint().port() << std::endl;
-		conn.StartRead();
+		g_lock.lock();
+		std::cout << "connect to : " << conn->sock_.remote_endpoint().address().to_string() << ":" << conn->sock_.remote_endpoint().port() << std::endl;
+		std::cout << "local : " << conn->sock_.local_endpoint().address().to_string() << ":" << conn->sock_.local_endpoint().port() << std::endl;
+		g_lock.unlock();
+
+		conn->StartRead();
 	}
 
-	void TcpClient::Send(const char *data, unsigned short trans)
+	// can only use when connect succ
+	void TcpClient::Send(const char *data, size_t trans)
 	{
-		conn.Write(data, trans);
+		conn->Write(data, trans);
 	}
 	void TcpClient::Close()
 	{
-		conn.Close();
+		conn->Close();
 	}
 
 }
