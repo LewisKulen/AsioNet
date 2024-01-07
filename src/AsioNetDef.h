@@ -30,8 +30,7 @@ namespace AsioNet {
 	using namespace boost::asio;
 	using namespace boost::system;
 	using namespace boost::asio::detail::socket_ops;
-	using TCPEndPoint = ip::tcp::endpoint;
-
+	
 #define AN_INTERFACE
 #define AN_DEFAULT_HANDLER
 	struct AN_Msg {

@@ -1,14 +1,31 @@
 #include "TcpConn.h"
 #include <iostream>
+#include <utility>
+#include <string>
 
-namespace AsioNet {
-
-	TcpConn::TcpConn(io_context& s) :sock_(s)
+namespace AsioNet
+{
+	using namespace boost::placeholders;
+	void out_err_handler(const error_code &ec)
 	{
-
+		printf("error:%s\n", ec.message().c_str());
+	}
+	void out_net_proc(const char *data, size_t trans)
+	{
+		printf("recv[%lld],data[%s]\n", trans, std::string(data, trans).c_str());
 	}
 
-	bool TcpConn::Write(const char* data, size_t trans)
+	TcpConn::TcpConn(io_context &ctx) : sock_(ctx)
+	{
+	}
+
+	TcpConn::TcpConn(ip::tcp::socket &&sock) : sock_{std::move(sock)}
+	{
+		err_handler = out_err_handler;
+		net_proc = out_net_proc;
+	}
+
+	bool TcpConn::Write(const char *data, size_t trans)
 	{
 		auto len = host_to_network_short(static_cast<decltype(AN_Msg::len)>(trans));
 		if (len != trans)
@@ -16,12 +33,13 @@ namespace AsioNet {
 			return false;
 		}
 		std::lock_guard<std::mutex> guard(sendLock);
-		sendBuffer.Push((const char*)(&len), sizeof(AN_Msg::len));
+		sendBuffer.Push((const char *)(&len), sizeof(AN_Msg::len));
 		sendBuffer.Push(data, trans);
 		auto head = sendBuffer.DetachHead();
 		if (head)
 		{
-			async_write(sock_, buffer(head->buffer, head->pos), boost::bind(&TcpConn::write_handler, this, _1, _2));
+			async_write(sock_, buffer(head->buffer, head->pos),
+						boost::bind(&TcpConn::write_handler, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
 		}
 		return true;
 		/*
@@ -36,11 +54,15 @@ namespace AsioNet {
 			Consider using the async_write function if you need to ensure that all data is written before the asynchronous operation completes.
 		// 如果使用这个函数，那么我的发送缓冲区将写的有点复杂了
 		*/
-		// sock_.async_write_some(buffer(acData, iSize), boost::bind(&TcpConn::send_handler, this, _1, _2));
+		// sock_.async_write_some(buffer(acData, iSize), boost::bind(&TcpConn::send_handler, this, boost::placeholders::_1, boost::placeholders::_2));
 	}
-	void TcpConn::write_handler(const error_code& ec, size_t)
+	void TcpConn::write_handler(const error_code &ec, size_t)
 	{
-		if (ec) { std::cout << ec.message() << std::endl; return; }
+		if (ec)
+		{
+			err_handler(ec);
+			return;
+		}
 
 		std::lock_guard<std::mutex> guard(sendLock);
 		sendBuffer.FreeDeatched();
@@ -49,7 +71,8 @@ namespace AsioNet {
 			auto head = sendBuffer.DetachHead();
 			if (head)
 			{
-				async_write(sock_, buffer(head->buffer, head->pos), boost::bind(&TcpConn::write_handler, this, _1, _2));
+				async_write(sock_, buffer(head->buffer, head->pos),
+							boost::bind(&TcpConn::write_handler, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
 			}
 		}
 	}
@@ -57,22 +80,33 @@ namespace AsioNet {
 	void TcpConn::StartRead()
 	{
 		// if sock_ is not open?
-		async_read(sock_, buffer(readBuffer, sizeof(AN_Msg::len)), boost::bind(&TcpConn::read_head_handler, this, _1, _2));
+		async_read(sock_, buffer(readBuffer, sizeof(AN_Msg::len)),
+				   boost::bind(&TcpConn::read_head_handler, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
 	}
 
-	void TcpConn::read_head_handler(const error_code& ec, size_t)
+	void TcpConn::read_head_handler(const error_code &ec, size_t)
 	{
-		if (ec) { std::cout << ec.message() << std::endl; return; }
+		if (ec)
+		{
+			err_handler(ec);
+			return;
+		}
 
-		auto len = *((decltype(AN_Msg::len)*)readBuffer);
-		async_read(sock_, buffer(readBuffer, len), boost::bind(&TcpConn::read_body_handler, this, _1, _2));
+		auto len = *((decltype(AN_Msg::len) *)readBuffer);
+		async_read(sock_, buffer(readBuffer, len),
+				   boost::bind(&TcpConn::read_body_handler, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
 	}
 
-	void TcpConn::read_body_handler(const error_code& ec, size_t trans)
+	void TcpConn::read_body_handler(const error_code &ec, size_t trans)
 	{
-		if (ec) { std::cout << ec.message() << std::endl; return; }
-		std::cout << "recv[]" << ",data:" << std::string(readBuffer, trans) << std::endl;
-		async_read(sock_, buffer(readBuffer, sizeof(AN_Msg::len)), boost::bind(&TcpConn::read_head_handler, this, _1, _2));
+		if (ec)
+		{
+			err_handler(ec);
+			return;
+		}
+		net_proc(readBuffer, trans);
+		async_read(sock_, buffer(readBuffer, sizeof(AN_Msg::len)),
+				   boost::bind(&TcpConn::read_head_handler, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
 	}
 
 	void TcpConn::Close()
@@ -82,4 +116,3 @@ namespace AsioNet {
 	}
 
 }
-

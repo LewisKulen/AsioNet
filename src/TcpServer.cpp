@@ -10,6 +10,11 @@ namespace AsioNet
 	{
 
 	}
+	void acp_handler(const error_code& ec,ip::tcp::socket cli)
+	{
+		
+	}
+
 	void TCPServer::Serve(unsigned short port)
 	{
 		ip::tcp::endpoint ep(ip::tcp::v4(), port);
@@ -18,15 +23,16 @@ namespace AsioNet
 		m_acceptor.bind(ep);
 		m_acceptor.listen();
 
-
-		ip::tcp::socket cli(m_acceptor.get_executor());
-		m_acceptor.async_accept(cli,boost::bind(&TCPServer::accept_handler,this,_1));
+		m_acceptor.async_accept(acp_handler);
+		// m_acceptor.async_accept(boost::bind(&TCPServer::accept_handler,this,_1,_2));
 
 	}
 
-	void TCPServer::accept_handler(const error_code& ec)
+	void TCPServer::accept_handler(const error_code& ec,ip::tcp::socket& cli)
 	{
-		if (ec) { std::cout << ec.message() << std::endl; return; }
-
+		// if (ec) { std::cout << ec.message() << std::endl; return; }
+		// auto conn = std::make_shared<TcpConn>(std::move(cli));
+		// conn->StartRead();
 	}
+	
 }
