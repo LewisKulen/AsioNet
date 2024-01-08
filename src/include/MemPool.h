@@ -16,14 +16,11 @@ public:
 	{
 		m_extendSize = uiExtendSize;
 		m_freeHead = nullptr;
-		ExtendPool();
+		// ExtendPool();
 	}
 	~MemPool_ThreadUnsafe()
 	{
-		for (size_t i = 0; i < m_pool.size(); i++)
-		{
-			delete[] m_pool[i];
-		}
+		Clear();
 	}
 	T* New()
 	{
@@ -40,6 +37,15 @@ public:
 	{
 		((Elem*)p)->next = m_freeHead;
 		m_freeHead = (Elem*)p;
+	}
+	void Clear()
+	{
+		for (size_t i = 0; i < m_pool.size(); i++)
+		{
+			delete[] m_pool[i];
+		}
+		m_freeHead = nullptr;
+		m_pool.clear();
 	}
 protected:
 	void ExtendPool()

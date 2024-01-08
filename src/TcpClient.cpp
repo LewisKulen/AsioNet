@@ -17,7 +17,8 @@ namespace AsioNet
 	{
 		if (ec)
 		{
-			std::cout << ec.message() << std::endl;
+			std::cout << "conn error" << std::endl;
+			conn->Close();
 			return;
 		}
 

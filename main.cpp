@@ -28,7 +28,10 @@ void StartClient()
     c1.Send("lala", 4);
 
     auto t1 = std::thread([&ctx](){
-        ctx.run();
+        while (true)
+        {
+            ctx.run();
+        }
     });
 
     int tot = 1024*1024*8;
@@ -50,7 +53,7 @@ void StartClient()
         c1.Send(s.c_str(), 6);
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
-    c.Close();
+    // c.Close();
     t1.join();
     std::cout << "client finish" << std::endl;
 }

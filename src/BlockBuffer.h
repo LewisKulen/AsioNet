@@ -2,7 +2,7 @@
 
 namespace AsioNet {
 	constexpr unsigned int DEFAULT_SEND_BUFFER_SIZE = 1024 * 8;
-	const unsigned int DEFAULT_SEND_BUFFER_POOL_EXTEND_SIZE = 8;
+	const unsigned int DEFAULT_SEND_BUFFER_POOL_EXTEND_SIZE = 2;
 
 	template<size_t V_BUFFER_SIZE>
 	struct BlockElem {
@@ -71,7 +71,7 @@ namespace AsioNet {
 
 			if (!tail)
 			{
-				tail = m_pool.New();
+				tail = m_pool.New();	// this will memset the block
 				if (!head)	// first push
 				{
 					head = tail;
@@ -88,6 +88,21 @@ namespace AsioNet {
 					tail = tail->next;
 				}
 			} while (copied < trans);
+		}
+		void Clear()
+		{
+			if (detachedHead)
+			{
+				m_pool.Del(detachedHead);
+			}
+			while (head)
+			{
+				BlockElem<V_BUFFER_SIZE>* p = head;
+				head = head->next;
+				m_pool.Del(p);
+			}
+			m_pool.Clear();
+			detachedHead = head = tail = nullptr;
 		}
 	private:
 		BlockElem<V_BUFFER_SIZE>* head, * tail, * detachedHead;
