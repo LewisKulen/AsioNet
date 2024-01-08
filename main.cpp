@@ -25,10 +25,7 @@ void StartClient()
     AsioNet::TcpClient c(ctx);
     c.Connect("127.0.0.1",8888);
     AsioNet::TcpClient c1(ctx);
-    c1.Connect("127.0.0.1", 8888);
-
-    /*AsioNet::TcpClient c2(ctx);
-    c2.Send("lala", 4);*/
+    c1.Send("lala", 4);
 
     auto t1 = std::thread([&ctx](){
         ctx.run();
@@ -60,9 +57,9 @@ void StartClient()
 
 int main()
 {
-    auto t1 = std::thread(StartServer);
-    auto t2 = std::thread(StartClient);
-    t1.join();
+    // auto t1 = std::thread(StartServer);
+     auto t2 = std::thread(StartClient);
+    // t1.join();
     t2.join();
     return 0;
 }

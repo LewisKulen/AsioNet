@@ -19,6 +19,8 @@ namespace AsioNet
 
 	TcpConn::TcpConn(io_ctx& ctx) : sock_(ctx)
 	{
+		err_handler = out_err_handler;
+		net_proc = out_net_proc;
 	}
 
 	TcpConn::TcpConn(TcpSock &&sock) : sock_{std::move(sock)}
@@ -29,20 +31,18 @@ namespace AsioNet
 
 	TcpConn::~TcpConn()
 	{
-		std::cout << "conn destory" << std::endl;
 		Close();
 	}
 	bool TcpConn::Write(const char *data, size_t trans)
 	{
 		if (trans > AN_MSG_MAX_SIZE)
 		{
-			std::cout << "too big" << std::endl;
 			return false;
 		}
-		/*if (!sock_.is_open())
+		if (!sock_.is_open())
 		{
 			return false;
-		}*/
+		}
 		auto netLen = boost::asio::detail::socket_ops::
 			host_to_network_short(static_cast<decltype(AN_Msg::len)>(trans));
 
@@ -74,6 +74,8 @@ namespace AsioNet
 	{
 		if (ec)
 		{
+			// 如果出错，那么就会导致数据不会再发成功，
+			// 必须得FreeDeatched之后才能发送成功，如何处理错误好些呢
 			err_handler(ec);
 			return;
 		}
@@ -93,8 +95,7 @@ namespace AsioNet
 
 	void TcpConn::StartRead()
 	{
-		// std::cout << "start read from port:" << sock_.local_endpoint().port() << std::endl;
-		// if sock_ is not open?
+		// if sock_ is not open,will get error
 		async_read(sock_, boost::asio::buffer(readBuffer, sizeof(AN_Msg::len)),
 				   boost::bind(&TcpConn::read_head_handler, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
 	}
@@ -103,9 +104,7 @@ namespace AsioNet
 	{
 		if (ec)
 		{
-			printf("error:%s\n", ec.message().c_str());
-			// is use err_handler,dump occur
-			//err_handler(ec);
+			err_handler(ec);
 			return;
 		}
 

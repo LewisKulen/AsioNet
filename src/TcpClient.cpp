@@ -22,7 +22,7 @@ namespace AsioNet
 		}
 
 		g_lock.lock();
-		std::cout << "connect to : " << conn->sock_.remote_endpoint().address().to_string() << ":" << conn->sock_.remote_endpoint().port() << std::endl;
+		std::cout << "succ connect to : " << conn->sock_.remote_endpoint().address().to_string() << ":" << conn->sock_.remote_endpoint().port() << std::endl;
 		std::cout << "local : " << conn->sock_.local_endpoint().address().to_string() << ":" << conn->sock_.local_endpoint().port() << std::endl;
 		g_lock.unlock();
 

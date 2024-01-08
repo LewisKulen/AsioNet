@@ -9,7 +9,8 @@ namespace AsioNet
 		~TCPServer();
 		void Serve(unsigned short port);
 	protected:
-		void accept_handler(const NetErr& error,TcpSock cli);
+		void DoAccept();
+
 	private:
 		boost::asio::ip::tcp::acceptor m_acceptor;
 	};
