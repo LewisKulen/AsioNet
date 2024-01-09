@@ -1,10 +1,4 @@
 #include "TcpConn.h"
-#include <boost/bind/bind.hpp>
-#include <utility>	// std::move
-
-#include <iostream>
-#include <string>
-#include <mutex>
 
 namespace AsioNet
 {
@@ -30,23 +24,12 @@ namespace AsioNet
 		boost::asio::ip::tcp::no_delay option(true);
 		NetErr ec;
 		sock_.set_option(option, ec);
-		if (ec)
-		{
-			if (logger) {
-				logger->Log(sock_,ec);
-			}
-		}
 	}
 	bool TcpConn::Write(const char *data, size_t trans)
 	{
 		if (trans > AN_MSG_MAX_SIZE)
 		{
 			return false;
-		}
-
-		{
-			std::lock_guard<std::mutex> guard(logger->lock);
-			printf("write size[%lld],data[%s]\n",trans,std::string(data,trans).c_str());
 		}
 
 		auto netLen = boost::asio::detail::socket_ops::
@@ -120,20 +103,17 @@ namespace AsioNet
 
 	void TcpConn::net_proc(const char* data, size_t trans)
 	{
-		// echo
-		{
-			std::lock_guard<std::mutex> guard(logger->lock);
-			printf("th_id[%d],recv size[%lld],data[%s]\n",std::this_thread::get_id(),trans,std::string(data,trans).c_str());
-		}
-		// Write(data,trans);
+
+#ifdef _AN_PROC_IN_IO_THREAD_
+
+#else
+
+#endif
+
 	}
 
 	void TcpConn::err_handler(const NetErr& err)	// 关闭socket，错误输出
 	{
-		// 错误输出
-		if (logger) {
-			logger->Log(sock_,err);
-		}
 		Close();	// 关闭链接
 		// 通知上层链接关闭
 	}

@@ -89,9 +89,8 @@ void TestClient()
 
 int main()
 {
-    // TestServer();
+    TestServer();
     // Test();
-    TestClient();
-
+    // TestClient();
     return 0;
 }
