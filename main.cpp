@@ -5,64 +5,93 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <atomic>
+#include <mutex>
+
+// #include <boost/thread.hpp>
 
 unsigned short port_ = 8888;
 
 std::mutex g_lock;
 
-void StartServer()
+void TestServer()
 {
     AsioNet::io_ctx ctx;
+    std::vector<std::thread> thread_pool;
+    std::atomic<int> tot = 0;
+    int th_num = 4;
+    for (int i = 0;i < th_num; ++i)
+    {
+        thread_pool.push_back(
+            std::thread([&](){
+                tot++;
+            while(true)
+            {
+                ctx.run();
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+        })
+        );
+    }
+
     AsioNet::TCPServer s(ctx);
     s.Serve(port_);
-    ctx.run();
-    std::cout << "server quit" << std::endl;
+
+    for(auto& t : thread_pool)
+    {
+        t.join();
+    }
+    std::cout << "finish" << std::endl;
 }
 
-void StartClient()
+void TestClient()
 {
     AsioNet::io_ctx ctx;
+    std::vector<std::thread> thread_pool;
+    std::atomic<int> tot = 0;
+    int th_num = 4;
+    for (int i = 0;i < th_num; ++i)
+    {
+        thread_pool.push_back(
+            std::thread([&](){
+                tot++;
+            while(true)
+            {
+                ctx.run();
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+        })
+        );
+    }
+
     AsioNet::TcpClient c(ctx);
     c.Connect("127.0.0.1",8888);
-    AsioNet::TcpClient c1(ctx);
-    c1.Send("lala", 4);
 
-    auto t1 = std::thread([&ctx](){
-        while (true)
-        {
-            ctx.run();
-        }
-    });
-
-    int tot = 1024*1024*8;
-    std::string s;
-    int i = 1;
-    while(s.length() < tot) {
-        auto temp = std::to_string(i++);
-        for (auto ch : temp)
-        {
-            s.push_back(ch);
-        }
-    }
-    
     int pos = 0;
     int loop = 3;
-    while(loop--)
+    for(int i = 1;;++i)
     {
-        c.Send(s.c_str(),100);
-        c1.Send(s.c_str(), 6);
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        auto data = std::to_string(i);
+        c.Send(data.c_str(),data.length());
+        std::this_thread::sleep_for(std::chrono::seconds(3));
     }
     // c.Close();
-    t1.join();
+
     std::cout << "client finish" << std::endl;
+
+    for(auto& t : thread_pool)
+    {
+        t.join();
+    }
+    std::cout << "finish" << std::endl;
 }
+
 
 int main()
 {
-    // auto t1 = std::thread(StartServer);
-     auto t2 = std::thread(StartClient);
-    // t1.join();
-    t2.join();
+    // TestServer();
+    // Test();
+    TestClient();
+
     return 0;
 }

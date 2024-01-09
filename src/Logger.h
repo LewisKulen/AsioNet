@@ -16,7 +16,11 @@ namespace AsioNet
 			std::lock_guard<std::mutex> guard(lock);
 			std::cout << err.message().c_str() << std::endl;
 		}
-	private:
+		void Log(std::string& str)
+		{
+			std::lock_guard<std::mutex> guard(lock);
+			std::cout << str.c_str() << std::endl;
+		}
 		std::mutex lock;
 	};
 	

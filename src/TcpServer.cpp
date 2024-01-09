@@ -11,7 +11,6 @@ namespace AsioNet
 
 	TCPServer::~TCPServer()
 	{
-		std::cout << "server destory" << std::endl;
 		if(m_acceptor.is_open())
 		{
 			m_acceptor.close();

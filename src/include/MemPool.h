@@ -5,6 +5,7 @@
 
 // Caution:Thread Unsafe
 // T Should be a fixed size elem
+// RAII
 template<class T>
 class MemPool_ThreadUnsafe {
 	struct Elem {

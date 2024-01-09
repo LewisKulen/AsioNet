@@ -1,6 +1,7 @@
 #include "MemPool.h"
 
-namespace AsioNet {
+namespace AsioNet 
+{
 	constexpr unsigned int DEFAULT_SEND_BUFFER_SIZE = 1024 * 8;
 	const unsigned int DEFAULT_SEND_BUFFER_POOL_EXTEND_SIZE = 2;
 
@@ -36,8 +37,9 @@ namespace AsioNet {
 	public:
 		BlockSendBuffer() :
 			m_pool(V_BUFFER_POOL_EXTEND_SIZE), head(nullptr), tail(nullptr), detachedHead(nullptr)
-		{};
-
+		{}
+		~BlockSendBuffer()
+		{}
 		bool Empty()
 		{
 			return head == nullptr;
@@ -91,16 +93,6 @@ namespace AsioNet {
 		}
 		void Clear()
 		{
-			if (detachedHead)
-			{
-				m_pool.Del(detachedHead);
-			}
-			while (head)
-			{
-				BlockElem<V_BUFFER_SIZE>* p = head;
-				head = head->next;
-				m_pool.Del(p);
-			}
 			m_pool.Clear();
 			detachedHead = head = tail = nullptr;
 		}

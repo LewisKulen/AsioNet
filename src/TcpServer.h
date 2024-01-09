@@ -5,7 +5,7 @@ namespace AsioNet
 {
 	class TCPServer {
 	public:
-		TCPServer(io_ctx& context);
+		TCPServer(io_ctx& ctx);
 		~TCPServer();
 		void Serve(unsigned short port);
 	protected:

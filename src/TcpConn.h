@@ -23,18 +23,17 @@ namespace AsioNet
 		TcpConn(TcpSock &&sock); // for server
 		~TcpConn();
 	protected:
-		void read_head_handler(const NetErr&, size_t);
-		void read_body_handler(const NetErr &, size_t);
+		void read_handler(const NetErr &, size_t);
 		void write_handler(const NetErr &, size_t);
 		void err_handler(const NetErr &);	// ¹Ø±Õsocket£¬´íÎóÊä³ö
-		// void (*net_proc)(const char *data, size_t trans);
-
+		void net_proc(const char *data, size_t trans);
+		void init();
 	private:
 		TcpSock sock_;
 		std::mutex sendLock;
 		BlockSendBuffer<DEFAULT_SEND_BUFFER_SIZE, DEFAULT_SEND_BUFFER_POOL_EXTEND_SIZE> sendBuffer;	// if no send,0KB
-		
-		char readBuffer[AN_MSG_MAX_SIZE];	// 64KB
+		// FixedBuffer<AN_MSG_MAX_SIZE> readBuffer;
+		char readBuffer[AN_MSG_MAX_SIZE];
 		TestLogger* logger = new TestLogger;
 		// std::shared_ptr<ILogger> logger;
 	};
