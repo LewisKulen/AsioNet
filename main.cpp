@@ -34,7 +34,7 @@ void TestServer()
         );
     }
 
-    AsioNet::TCPServer s(ctx);
+    AsioNet::TcpServer s(ctx);
     s.Serve(port_);
 
     for(auto& t : thread_pool)

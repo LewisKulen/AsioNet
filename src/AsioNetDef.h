@@ -23,14 +23,8 @@ namespace AsioNet {
 	};
 	constexpr size_t AN_MSG_MAX_SIZE = 1 << (sizeof(AN_Msg::len) * 8);
 
-	using NetKey = unsigned long long;
-	//struct MakeNetKey {
-	//	NetKey operator()(const TcpEndPoint& ep)
-	//	{
-	//		return (static_cast<unsigned long long>(ep.address().to_v4().to_uint()) << 32)
-	//				| static_cast<unsigned long long>(ep.port());
-	//	}
-	//};
+	using NetKey = unsigned long long;	// addr:port
+	using ServerKey = unsigned short;	// listened port
 
-
+	const NetKey NetKeyNull = 0;
 }

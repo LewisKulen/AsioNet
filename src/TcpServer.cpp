@@ -1,23 +1,20 @@
 #include "TcpServer.h"
-#include <iostream>
 
 namespace AsioNet
 {
 	// #define ERR_CHECK if(ec){std::cout << ec.message() << std::endl;return;}
 
-	TCPServer::TCPServer(io_ctx& ctx):
+	TcpServer::TcpServer(io_ctx& ctx):
 		m_acceptor(ctx)
 	{}
 
-	TCPServer::~TCPServer()
+	TcpServer::~TcpServer()
 	{
-		if(m_acceptor.is_open())
-		{
-			m_acceptor.close();
-		}
+		NetErr err;
+		m_acceptor.close(err);
 	}
 
-	void TCPServer::Serve(unsigned short port)
+	void TcpServer::Serve(unsigned short port)
 	{
 		TcpEndPoint ep(boost::asio::ip::tcp::v4(), port);
 		m_acceptor.open(ep.protocol());
@@ -28,20 +25,23 @@ namespace AsioNet
 		DoAccept();
 	}
 
-	void TCPServer::DoAccept()
+	void TcpServer::DoAccept()
 	{
-		m_acceptor.async_accept([&](const NetErr& ec,TcpSock cli){
-			if (ec) { std::cout << ec.message() << std::endl; return; }
+		m_acceptor.async_accept([this](const NetErr& ec,TcpSock cli){
+			if (ec) { return; }
 
-			g_lock.lock();
-			std::cout << "accept: " << cli.remote_endpoint().address().to_string() << ":" << cli.remote_endpoint().port() << std::endl;
-			g_lock.unlock();
-		
 			auto conn = std::make_shared<TcpConn>(std::move(cli));
+
+			static NetErr err;
+			conn->poller->PushAccept(conn->sock_.remote_endpoint(err));
+			{
+				std::lock_guard<std::mutex> guard(m_lock);
+				this->m_clients[conn->GetKey()] = conn;
+			}
 			conn->StartRead();
+
 			DoAccept();
 		});
 	}
-
 	
 }

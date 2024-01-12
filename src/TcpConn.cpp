@@ -14,15 +14,15 @@ namespace AsioNet
 
 	TcpConn::~TcpConn()
 	{
-		NetErr err;
+		static NetErr err;
 		sock_.shutdown(boost::asio::ip::tcp::socket::shutdown_both, err);
 		sock_.close(err);
 	}
 
 	void TcpConn::init()
 	{
+		static NetErr ec;
 		boost::asio::ip::tcp::no_delay option(true);
-		NetErr ec;
 		sock_.set_option(option, ec);
 	}
 	bool TcpConn::Write(const char *data, size_t trans)
@@ -95,27 +95,17 @@ namespace AsioNet
 							self->err_handler(ec);
 							return;
 						}
-						self->net_proc(self->readBuffer, trans);
+						self->poller->PushRecv(self->readBuffer, trans);
 						async_read(self->sock_, boost::asio::buffer(self->readBuffer, sizeof(AN_Msg::len)),
 				   			boost::bind(&TcpConn::read_handler, self, boost::placeholders::_1, boost::placeholders::_2));
 					});
 	}
 
-	void TcpConn::net_proc(const char* data, size_t trans)
-	{
-
-#ifdef _AN_PROC_IN_IO_THREAD_
-
-#else
-
-#endif
-
-	}
-
 	void TcpConn::err_handler(const NetErr& err)	// 关闭socket，错误输出
 	{
+		static NetErr ne;
+		poller->PushDisconnect(sock_.remote_endpoint(ne));// 通知上层链接关闭
 		Close();	// 关闭链接
-		// 通知上层链接关闭
 	}
 	
 	void TcpConn::Close()
@@ -131,4 +121,12 @@ namespace AsioNet
 		sock_.close(err);
 	}
 
+	NetKey TcpConn::GetKey()
+	{
+		static NetErr err;
+		TcpEndPoint ep = sock_.remote_endpoint(err);
+		return (static_cast<unsigned long long>(ep.address().to_v4().to_uint()) << 32)
+			| static_cast<unsigned long long>(ep.port());
+
+	}
 }

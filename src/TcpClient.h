@@ -11,6 +11,7 @@ namespace AsioNet
 		void Connect(std::string addr, unsigned short port);
 		void Send(const char* data, size_t trans);
 		void Close();
+
 	protected:
 		void connect_handler(const NetErr&);
 	private:
