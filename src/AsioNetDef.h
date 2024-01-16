@@ -21,7 +21,7 @@ namespace AsioNet {
 		unsigned short len;
 		// char data[0];
 	};
-	constexpr size_t AN_MSG_MAX_SIZE = 1 << (sizeof(AN_Msg::len) * 8);
+	constexpr size_t AN_MSG_MAX_SIZE = (1 << (sizeof(AN_Msg::len) * 8)) - 1;
 
 	using NetKey = unsigned long long;	// addr:port
 	using ServerKey = unsigned short;	// listened port

@@ -22,10 +22,10 @@ namespace AsioNet
 		m_acceptor.bind(ep);
 		m_acceptor.listen();
 
-		DoAccept();
+		doAccept();
 	}
 
-	void TcpServer::DoAccept()
+	void TcpServer::doAccept()
 	{
 		m_acceptor.async_accept([this](const NetErr& ec,TcpSock cli){
 			if (ec) { return; }
@@ -40,8 +40,14 @@ namespace AsioNet
 			}
 			conn->StartRead();
 
-			DoAccept();
+			doAccept();
 		});
 	}
+
+	ServerKey TcpServer::GetKey()
+	{
+		return 0;	
+	}
+
 	
 }

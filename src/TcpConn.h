@@ -32,7 +32,6 @@ namespace AsioNet
 
 		void err_handler(const NetErr &);
 
-
 	private:
 		TcpSock sock_;
 		std::mutex sendLock;
@@ -41,11 +40,13 @@ namespace AsioNet
 		IEventPoller* poller;
 	};
 
-	// NewTCPConn()
-	// NewUDPConn()
-	// NewKCPConn()
-	// class TcpConnFactory {
-	//
-	//};
+	class TcpConnFactory {
+	public:
+		std::shared_ptr<TcpConn> NewSeverClient();
+		std::shared_ptr<TcpConn> NewClient();
+		TcpConnFactory* GetInstance();
+	private:
+		std::map<NetKey, std::shared_ptr<TcpConn>> m_conns;
+	};
 
 }

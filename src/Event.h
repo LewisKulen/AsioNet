@@ -3,7 +3,7 @@
 namespace AsioNet
 {
 	/*
-		网络层要的是效率，不是过高的抽象，内部还是减少抽象为好，
+		网络层要的是效率，不是过高的抽象，内部要减少抽象，
 		而且事件的类型是固定的，就这么几种，没必要
 
 		class AcceptEvent {};
@@ -29,10 +29,15 @@ namespace AsioNet
 		virtual void PushConnect(const TcpEndPoint& remote) = 0;
 		virtual void PushDisconnect(const TcpEndPoint& remote) = 0;
 		virtual void PushRecv(const char* data, size_t trans) = 0;
-
+		void (*PushAccept)(const TcpEndPoint& remote);
+		void (*PushConnect)(const TcpEndPoint& remote);
+		void (*PushDisconnect)(const TcpEndPoint& remote);
+		void (*PushRecv)(const char* data, size_t trans);
 	};
 
-	// 内部不做接口，减少开销，性能优先
+	// 性能优先
+	// 内部不做接口，减少开销
+	// 也不用仿函数，减少调用
 	struct IEventPoller1 {
 		static IEventPoller1* GetInstance()
 		{
@@ -47,9 +52,10 @@ namespace AsioNet
 		IEventPoller1()
 		{
 			// how can i bind to DefaultEventPoller?
-			// PushAccept = DefaultEventPoller::GetInstance()->PushAccept;
+			PushAccept = &(static_cast<IEventPoller*>(DefaultEventPoller::GetInstance())->PushAccept);
 
 		}
+		IEventPoller* m_poller;
 	};
 
 	struct IEventHandler {
@@ -63,10 +69,10 @@ namespace AsioNet
 	// singleton
 	class DefaultEventPoller:public IEventPoller {
 	public:
-		void PushAccept(const TcpEndPoint& remote) {};
-		void PushConnect(const TcpEndPoint& remote) {};
-		void PushDisconnect(const TcpEndPoint& remote) {};
-		void PushRecv(const char* data, size_t trans) {};
+		void PushAccept(const TcpEndPoint& remote) override{};
+		void PushConnect(const TcpEndPoint& remote) override{};
+		void PushDisconnect(const TcpEndPoint& remote) override{};
+		void PushRecv(const char* data, size_t trans) override{};
 		void SetHandler(IEventHandler*);
 
 		static DefaultEventPoller* GetInstance();
@@ -98,7 +104,5 @@ namespace AsioNet
 
 
 	// 使用者：实现IEventHandler
-
-	// 考虑外部该如何使用我这个系统？
 
 }

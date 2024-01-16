@@ -127,6 +127,5 @@ namespace AsioNet
 		TcpEndPoint ep = sock_.remote_endpoint(err);
 		return (static_cast<unsigned long long>(ep.address().to_v4().to_uint()) << 32)
 			| static_cast<unsigned long long>(ep.port());
-
 	}
 }
