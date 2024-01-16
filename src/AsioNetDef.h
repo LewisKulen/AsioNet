@@ -27,4 +27,16 @@ namespace AsioNet {
 	using ServerKey = unsigned short;	// listened port
 
 	const NetKey NetKeyNull = 0;
+
+	template<typename T>
+	class Singleton {
+	public:
+		T* GetInstance()
+		{
+			static T m_;
+			return &m_;
+		}
+	protected:
+		Singleton() {}
+	};
 }

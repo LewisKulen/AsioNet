@@ -25,29 +25,20 @@ namespace AsioNet
 		doAccept();
 	}
 
+	// 当accept失败时，自动释放TcpServer资源
 	void TcpServer::doAccept()
 	{
-		m_acceptor.async_accept([this](const NetErr& ec,TcpSock cli){
+		m_acceptor.async_accept([self = shared_from_this()](const NetErr& ec, TcpSock cli) {
 			if (ec) { return; }
 
+			// 当client conn断开连接时，自动释放conn资源
 			auto conn = std::make_shared<TcpConn>(std::move(cli));
 
-			static NetErr err;
+			NetErr err;
 			conn->poller->PushAccept(conn->sock_.remote_endpoint(err));
-			{
-				std::lock_guard<std::mutex> guard(m_lock);
-				this->m_clients[conn->GetKey()] = conn;
-			}
 			conn->StartRead();
 
-			doAccept();
+			self->doAccept();
 		});
-	}
-
-	ServerKey TcpServer::GetKey()
-	{
-		return 0;	
-	}
-
-	
+	}	
 }

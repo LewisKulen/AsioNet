@@ -3,6 +3,7 @@
 #include "AsioNetDef.h"
 #include "BlockBuffer.h"
 #include "Event.h"
+#include <map>
 
 namespace AsioNet
 {
@@ -12,13 +13,14 @@ namespace AsioNet
 	class TcpConn : public std::enable_shared_from_this<TcpConn>
 	{
 		// 紧耦合，friend
-		friend class TcpClient;
 		friend class TcpServer;
 
 	public:
 		void Close();
 		bool Write(const char *data, size_t trans);
+		
 		void StartRead(); // start read loop
+		void Connect(std::string addr, unsigned short port);
 
 		TcpConn(io_ctx& ctx);		 // for client
 		TcpConn(TcpSock &&sock); // for server
@@ -29,23 +31,26 @@ namespace AsioNet
 
 		void read_handler(const NetErr &, size_t);
 		void write_handler(const NetErr &, size_t);
+		void connect_handler(const NetErr& ec);
 
 		void err_handler(const NetErr &);
 
 	private:
 		TcpSock sock_;
 		std::mutex sendLock;
-		BlockSendBuffer<DEFAULT_SEND_BUFFER_SIZE, DEFAULT_SEND_BUFFER_POOL_EXTEND_SIZE> sendBuffer;	// if no send,0KB
+		BlockSendBuffer<SEND_BUFFER_SIZE> sendBuffer;	// if no send,0KB
 		char readBuffer[AN_MSG_MAX_SIZE];
 		IEventPoller* poller;
 	};
 
-	class TcpConnFactory {
+	// 一个mgr，一个io_ctx
+	// mgr管理自己的conn
+
+	class TcpConnFactory{
 	public:
-		std::shared_ptr<TcpConn> NewSeverClient();
-		std::shared_ptr<TcpConn> NewClient();
-		TcpConnFactory* GetInstance();
+		std::shared_ptr<TcpConn> NewConn();
 	private:
+		std::mutex connLock;
 		std::map<NetKey, std::shared_ptr<TcpConn>> m_conns;
 	};
 

@@ -4,7 +4,7 @@
 
 namespace AsioNet
 {
-	class TcpServer {
+	class TcpServer: public std::enable_shared_from_this<TcpServer> {
 	public:
 		TcpServer() = delete;
 		TcpServer(const TcpServer&) = delete;
@@ -13,12 +13,9 @@ namespace AsioNet
 		TcpServer(io_ctx& ctx);
 		~TcpServer();
 		void Serve(unsigned short port);
-		ServerKey GetKey();
 	protected:
 		void doAccept();
 	private:
 		boost::asio::ip::tcp::acceptor m_acceptor;
-		std::map<NetKey, std::shared_ptr<TcpConn>> m_clients;
-		std::mutex m_lock;
 	};
 }

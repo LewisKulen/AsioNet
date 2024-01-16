@@ -2,8 +2,8 @@
 
 namespace AsioNet 
 {
-	constexpr unsigned int DEFAULT_SEND_BUFFER_SIZE = 1024 * 8;
-	const unsigned int DEFAULT_SEND_BUFFER_POOL_EXTEND_SIZE = 2;
+	constexpr unsigned int SEND_BUFFER_SIZE = 1024 * 8;
+	const unsigned int SEND_BUFFER_EXTEND_NUM = 2;
 
 	template<size_t V_BUFFER_SIZE>
 	struct BlockElem {
@@ -32,11 +32,12 @@ namespace AsioNet
 		BlockElem<V_BUFFER_SIZE>* next;
 	};
 
-	template<size_t V_BUFFER_SIZE, size_t V_BUFFER_POOL_EXTEND_SIZE>
+	template<size_t V_BUFFER_SIZE/*每个buffer的大小*/>
 	class BlockSendBuffer {
 	public:
-		BlockSendBuffer() :
-			m_pool(V_BUFFER_POOL_EXTEND_SIZE), head(nullptr), tail(nullptr), detachedHead(nullptr)
+		// 每次扩充几个buffer
+		BlockSendBuffer(size_t extendNum) :
+			m_pool(extendNum), head(nullptr), tail(nullptr), detachedHead(nullptr)
 		{}
 		~BlockSendBuffer()
 		{}

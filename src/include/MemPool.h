@@ -27,7 +27,7 @@ public:
 	{
 		if (m_freeHead == nullptr)
 		{
-			ExtendPool();
+			extendPool();
 		}
 		T* data = &(m_freeHead->data);
 		memset(data, 0, sizeof(T));
@@ -49,7 +49,7 @@ public:
 		m_pool.clear();
 	}
 protected:
-	void ExtendPool()
+	void extendPool()
 	{
 		Elem* extendPool = new Elem[m_extendSize];
 		for (size_t i = 0; i < m_extendSize - 1; i++)
@@ -57,7 +57,7 @@ protected:
 			extendPool[i].next = &extendPool[i + 1];
 		}
 		extendPool[m_extendSize - 1].next = m_freeHead;
-		m_freeHead = &extendPool[0];
+		m_freeHead = extendPool[0];
 
 		m_pool.push_back(extendPool);
 	}
