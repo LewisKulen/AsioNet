@@ -14,6 +14,7 @@ namespace AsioNet {
 	using TcpEndPoint = boost::asio::ip::tcp::endpoint;
 
 	using NetErr = boost::system::error_code;
+	using _lock_guard_ = std::lock_guard<std::mutex>;
 
 #define AN_INTERFACE
 
@@ -24,9 +25,10 @@ namespace AsioNet {
 	constexpr size_t AN_MSG_MAX_SIZE = (1 << (sizeof(AN_Msg::len) * 8)) - 1;
 
 	using NetKey = unsigned long long;	// addr:port
-	using ServerKey = unsigned short;	// listened port
-
-	const NetKey NetKeyNull = 0;
+    struct NetAddr{
+        std::string ip;
+        unsigned short port;
+    };
 
 	template<typename T>
 	class Singleton {
@@ -39,4 +41,6 @@ namespace AsioNet {
 	protected:
 		Singleton() {}
 	};
+
+	
 }

@@ -1,21 +1,10 @@
+#pragma once
+
 #include "AsioNetDef.h"
+#include <queue>
 
 namespace AsioNet
 {
-	/*
-		网络层要的是效率，不是过高的抽象，内部要减少抽象，
-		而且事件的类型是固定的，就这么几种，没必要
-
-		class AcceptEvent {};
-		class ConnectEvent {};
-		class DisconnectEvent {};
-		class RecvEvent {};
-		struct IEvent {};
-		struct AN_INTERFACE IEventPoller {
-			virtual void PushEvent(IEvent*) = 0;
-			virtual IEvent* PopEvent() = 0;
-		};
-	*/
 
 	/*
 	class TcpConn{
@@ -29,10 +18,10 @@ namespace AsioNet
 		virtual void PushConnect(const TcpEndPoint& remote) = 0;
 		virtual void PushDisconnect(const TcpEndPoint& remote) = 0;
 		virtual void PushRecv(const char* data, size_t trans) = 0;
-		void (*PushAccept)(const TcpEndPoint& remote);
-		void (*PushConnect)(const TcpEndPoint& remote);
-		void (*PushDisconnect)(const TcpEndPoint& remote);
-		void (*PushRecv)(const char* data, size_t trans);
+		// void (*PushAccept)(const TcpEndPoint& remote);
+		// void (*PushConnect)(const TcpEndPoint& remote);
+		// void (*PushDisconnect)(const TcpEndPoint& remote);
+		// void (*PushRecv)(const char* data, size_t trans);
 	};
 
 	// 性能优先
@@ -52,35 +41,51 @@ namespace AsioNet
 		IEventPoller1()
 		{
 			// how can i bind to DefaultEventPoller?
-			PushAccept = &(static_cast<IEventPoller*>(DefaultEventPoller::GetInstance())->PushAccept);
+			// PushAccept = &(static_cast<IEventPoller*>(DefaultEventPoller::GetInstance())->PushAccept);
 
 		}
 		IEventPoller* m_poller;
 	};
 
+
 	struct IEventHandler {
-		virtual void AcceptHandler(NetKey, const std::string& ip, unsigned short port) = 0;
-		virtual void ConnectHandler(NetKey, const std::string& ip, unsigned short port) = 0;
-		virtual void DisconnectHandler(NetKey, const std::string& ip, unsigned short port) = 0;
+		virtual void AcceptHandler(NetKey) = 0;
+		virtual void ConnectHandler(NetKey) = 0;
+		virtual void DisconnectHandler(NetKey) = 0;
 		virtual void RecvHandler(NetKey, const char* data, size_t trans) = 0;
 		virtual ~IEventHandler() {}
 	};
 
+	enum class EventType {
+		Accept,
+		Connect,
+		Disconnect,
+		Recv,
+	};
+	struct NetEvent{
+		NetKey key;
+		EventType type;
+	};
+
 	// singleton
-	class DefaultEventPoller:public IEventPoller {
+	class DefaultEventPoller/*:public IEventPoller */{
 	public:
-		void PushAccept(const TcpEndPoint& remote) override{};
-		void PushConnect(const TcpEndPoint& remote) override{};
-		void PushDisconnect(const TcpEndPoint& remote) override{};
-		void PushRecv(const char* data, size_t trans) override{};
+		void PushAccept(const NetKey& k);
+		void PushConnect(const NetKey& k);
+		void PushDisconnect(const NetKey& k);
+		void PushRecv(const NetKey& k,const char* data, size_t trans);
 		void SetHandler(IEventHandler*);
 
+		bool PopOne(NetEvent&);
 		static DefaultEventPoller* GetInstance();
 		~DefaultEventPoller() {};
 	protected:
 		DefaultEventPoller();
 	private:
 		IEventHandler* m_handler;
+		std::mutex m_lock;
+		std::queue<NetEvent> m_events;
+		// BlockBuffer recv_data;
 	};
 
 	struct DefaultEventHandler :public IEventHandler {

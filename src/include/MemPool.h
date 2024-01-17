@@ -57,7 +57,7 @@ protected:
 			extendPool[i].next = &extendPool[i + 1];
 		}
 		extendPool[m_extendSize - 1].next = m_freeHead;
-		m_freeHead = extendPool[0];
+		m_freeHead = &extendPool[0];
 
 		m_pool.push_back(extendPool);
 	}

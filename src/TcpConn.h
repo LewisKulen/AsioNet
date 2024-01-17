@@ -40,6 +40,7 @@ namespace AsioNet
 		std::mutex sendLock;
 		BlockSendBuffer<SEND_BUFFER_SIZE> sendBuffer;	// if no send,0KB
 		char readBuffer[AN_MSG_MAX_SIZE];
+		NetKey key_;
 		IEventPoller* poller;
 	};
 

@@ -26,6 +26,7 @@ namespace AsioNet
 		NetErr ec;
 		boost::asio::ip::tcp::no_delay option(true);
 		sock_.set_option(option, ec);
+		key_ = 0;
 	}
 	bool TcpConn::Write(const char* data, size_t trans)
 	{
@@ -37,7 +38,7 @@ namespace AsioNet
 		auto netLen = boost::asio::detail::socket_ops::
 			host_to_network_short(static_cast<decltype(AN_Msg::len)>(trans));
 
-		std::lock_guard<std::mutex> guard(sendLock);
+		_lock_guard_ g(sendLock);
 		sendBuffer.Push((const char*)(&netLen), sizeof(AN_Msg::len));
 		sendBuffer.Push(data, trans);
 		auto head = sendBuffer.DetachHead();
@@ -57,7 +58,7 @@ namespace AsioNet
 			return;
 		}
 
-		std::lock_guard<std::mutex> guard(sendLock);
+		_lock_guard_ g(sendLock);
 		sendBuffer.FreeDeatched();
 		if (!sendBuffer.Empty())
 		{
@@ -118,7 +119,7 @@ namespace AsioNet
 	void TcpConn::Close()
 	{
 		{
-			std::lock_guard<std::mutex> guard(sendLock);
+			_lock_guard_ g(sendLock);
 			sendBuffer.Clear();
 		}
 		// 如果write_handler出错调用Close释放了readBuffer，那么处在read_handler里面的readBuffer是不安全的
@@ -126,14 +127,20 @@ namespace AsioNet
 		NetErr err;
 		sock_.shutdown(boost::asio::ip::tcp::socket::shutdown_both, err);
 		sock_.close(err);
+		key_ = 0;
 	}
 
 	NetKey TcpConn::GetKey()
 	{
-		NetErr err;
-		TcpEndPoint ep = sock_.remote_endpoint(err);
-		return (static_cast<unsigned long long>(ep.address().to_v4().to_uint()) << 32)
-			| static_cast<unsigned long long>(ep.port());
+		if(key_ == 0){
+			NetErr err;
+			TcpEndPoint ep = sock_.remote_endpoint(err);
+			if(!err){
+				key_ = (static_cast<unsigned long long>(ep.address().to_v4().to_uint()) << 32)
+					| static_cast<unsigned long long>(ep.port());
+			}
+		}
+		return key_;
 	}
 
 	void TcpConn::Connect(std::string addr, unsigned short port)

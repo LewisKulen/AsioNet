@@ -1,6 +1,6 @@
 #pragma once
+
 #include "TcpConn.h"
-#include <map>
 
 namespace AsioNet
 {
