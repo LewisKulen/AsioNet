@@ -60,14 +60,11 @@ namespace AsioNet
 
 		_lock_guard_ g(sendLock);
 		sendBuffer.FreeDeatched();
-		if (!sendBuffer.Empty())
+		auto head = sendBuffer.DetachHead();
+		if (head)
 		{
-			auto head = sendBuffer.DetachHead();
-			if (head)
-			{
-				async_write(sock_, boost::asio::buffer(head->buffer, head->wpos),
-					boost::bind(&TcpConn::write_handler, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
-			}
+			async_write(sock_, boost::asio::buffer(head->buffer, head->wpos),
+				boost::bind(&TcpConn::write_handler, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
 		}
 		//else {
 		//	// 可以考虑顺带释放一些发送缓冲区
