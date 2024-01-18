@@ -3,12 +3,12 @@
 #include "AsioNetDef.h"
 #include "BlockBuffer.h"
 #include "Event.h"
-#include <map>
 
 namespace AsioNet
 {
 	// doc:https://www.boost.org/doc/libs/1_84_0/doc/html/boost_asio/reference/ip__tcp/socket.html
-	// 只能由client/server创建
+	constexpr unsigned int SEND_BUFFER_SIZE = 1024 * 8;
+	const unsigned int SEND_BUFFER_EXTEND_NUM = 2;
 
 	class TcpConn : public std::enable_shared_from_this<TcpConn>
 	{
@@ -38,21 +38,17 @@ namespace AsioNet
 	private:
 		TcpSock sock_;
 		std::mutex sendLock;
-		BlockSendBuffer<SEND_BUFFER_SIZE> sendBuffer;	// if no send,0KB
+		// 发送缓冲可以考虑做的大一点
+		BlockSendBuffer<SEND_BUFFER_SIZE,
+						SEND_BUFFER_EXTEND_NUM> sendBuffer;
 		char readBuffer[AN_MSG_MAX_SIZE];
 		NetKey key_;
 		IEventPoller* poller;
 	};
 
-	// 一个mgr，一个io_ctx
-	// mgr管理自己的conn
-
-	class TcpConnFactory{
-	public:
-		std::shared_ptr<TcpConn> NewConn();
-	private:
-		std::mutex connLock;
-		std::map<NetKey, std::shared_ptr<TcpConn>> m_conns;
+	struct ITcpConnFactory{
+		virtual std::shared_ptr<TcpConn> NewConn() = 0;
+		virtual ~ITcpConnFactory(){}
 	};
 
 }

@@ -1,113 +1,68 @@
 #pragma once
 
 #include "AsioNetDef.h"
+#include "BlockBuffer.h"
 #include <queue>
 
 namespace AsioNet
 {
-
-	/*
-	class TcpConn{
-	private:
-		IEventPoller*
-	};
-	*/
-
-	struct IEventPoller {
-		virtual void PushAccept(const TcpEndPoint& remote) = 0;
-		virtual void PushConnect(const TcpEndPoint& remote) = 0;
-		virtual void PushDisconnect(const TcpEndPoint& remote) = 0;
-		virtual void PushRecv(const char* data, size_t trans) = 0;
-		// void (*PushAccept)(const TcpEndPoint& remote);
-		// void (*PushConnect)(const TcpEndPoint& remote);
-		// void (*PushDisconnect)(const TcpEndPoint& remote);
-		// void (*PushRecv)(const char* data, size_t trans);
-	};
-
-	// 性能优先
-	// 内部不做接口，减少开销
-	// 也不用仿函数，减少调用
-	struct IEventPoller1 {
-		static IEventPoller1* GetInstance()
-		{
-			static IEventPoller1 m_poller;
-			return &m_poller;
-		}
-		void (*PushAccept)(const TcpEndPoint& remote);
-		void (*PushConnect)(const TcpEndPoint& remote);
-		void (*PushDisconnect)(const TcpEndPoint& remote);
-		void (*PushRecv)(const char* data, size_t trans);
-	private:
-		IEventPoller1()
-		{
-			// how can i bind to DefaultEventPoller?
-			// PushAccept = &(static_cast<IEventPoller*>(DefaultEventPoller::GetInstance())->PushAccept);
-
-		}
-		IEventPoller* m_poller;
-	};
-
-
-	struct IEventHandler {
-		virtual void AcceptHandler(NetKey) = 0;
-		virtual void ConnectHandler(NetKey) = 0;
-		virtual void DisconnectHandler(NetKey) = 0;
-		virtual void RecvHandler(NetKey, const char* data, size_t trans) = 0;
-		virtual ~IEventHandler() {}
-	};
-
-	enum class EventType {
+	enum class EventType
+	{
 		Accept,
 		Connect,
 		Disconnect,
 		Recv,
 	};
-	struct NetEvent{
+	struct NetEvent
+	{
 		NetKey key;
 		EventType type;
 	};
 
-	// singleton
-	class DefaultEventPoller/*:public IEventPoller */{
-	public:
-		void PushAccept(const NetKey& k);
-		void PushConnect(const NetKey& k);
-		void PushDisconnect(const NetKey& k);
-		void PushRecv(const NetKey& k,const char* data, size_t trans);
-		void SetHandler(IEventHandler*);
+    struct IEventHandler
+	{
+		virtual void AcceptHandler(NetKey) = 0;
+		virtual void ConnectHandler(NetKey) = 0;
+		virtual void DisconnectHandler(NetKey) = 0;
+		virtual void RecvHandler(NetKey, const char *data, size_t trans) = 0;
+		virtual void RecvHandler(NetKey, const std::string &) = 0;
 
-		bool PopOne(NetEvent&);
-		static DefaultEventPoller* GetInstance();
-		~DefaultEventPoller() {};
+		virtual ~IEventHandler() {}
+	};
+
+	// 性能优先
+	// 内部尽量不做接口，也不用仿函数，减少开销
+    // 内部已经实现有一个Poller，这只是给外部自定义用的
+    struct IEventPoller
+	{
+		virtual void PushAccept(NetKey k) = 0;
+		virtual void PushConnect(NetKey k) = 0;
+		virtual void PushDisconnect(NetKey k) = 0;
+		virtual void PushRecv(NetKey k, const char *data, size_t trans) = 0;
+
+		virtual ~IEventPoller(){}
+	};
+
+	const unsigned int DEFAULT_POLLER_BUFFER_SIZE = AN_MSG_MAX_SIZE;
+	const unsigned int DEFAULT_POLLER_BUFFER_EXTEND_NUM = 2;
+	class DefaultEventPoller : public IEventPoller
+	{
+	public:
+		void PushAccept(NetKey k);
+		void PushConnect(NetKey k);
+		void PushDisconnect(NetKey k);
+		void PushRecv(NetKey k, const char *data, size_t trans);
+
+		DefaultEventPoller(IEventHandler*);
+		~DefaultEventPoller(){};
+
 	protected:
-		DefaultEventPoller();
 	private:
-		IEventHandler* m_handler;
+		IEventHandler *ptr_handler;
 		std::mutex m_lock;
 		std::queue<NetEvent> m_events;
-		// BlockBuffer recv_data;
+		BlockBuffer<DEFAULT_POLLER_BUFFER_SIZE,
+					DEFAULT_POLLER_BUFFER_EXTEND_NUM> m_recvBuffer;
 	};
-
-	struct DefaultEventHandler :public IEventHandler {
-		void AcceptHandler(NetKey, const std::string& ip, unsigned short port) {};
-		void ConnectHandler(NetKey, const std::string& ip, unsigned short port) {};
-		void DisconnectHandler(NetKey, const std::string& ip, unsigned short port) {};
-		void RecvHandler(NetKey, const char* data, size_t trans) {};
-
-		static DefaultEventHandler* GetInstance()
-		{
-			static DefaultEventHandler m_handler;
-			return &m_handler;
-		}
-	protected:
-		DefaultEventHandler() {};
-	};
-
-#define ASIO_NET_SET_EVENT_HANDLER(h)	\
-					DefaultEventPoller::GetInstance()->SetHandler(h);
-
-
-
-	// 使用者：实现IEventHandler
 
 }

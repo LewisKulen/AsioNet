@@ -3,13 +3,13 @@
 namespace AsioNet
 {
 	TcpConn::TcpConn(io_ctx& ctx) :
-		sock_(ctx), sendBuffer(SEND_BUFFER_EXTEND_NUM)
+		sock_(ctx)
 	{
 		init();
 	}
 
 	TcpConn::TcpConn(TcpSock&& sock) :
-		sock_(std::move(sock)), sendBuffer(SEND_BUFFER_EXTEND_NUM)
+		sock_(std::move(sock))
 	{
 		init();
 	}
@@ -30,7 +30,7 @@ namespace AsioNet
 	}
 	bool TcpConn::Write(const char* data, size_t trans)
 	{
-		if (trans > AN_MSG_MAX_SIZE)
+		if (trans > AN_MSG_MAX_SIZE || trans <= 0)
 		{
 			return false;
 		}
@@ -44,7 +44,7 @@ namespace AsioNet
 		auto head = sendBuffer.DetachHead();
 		if (head)
 		{
-			async_write(sock_, boost::asio::buffer(head->buffer, head->pos),
+			async_write(sock_, boost::asio::buffer(head->buffer, head->wpos),
 				boost::bind(&TcpConn::write_handler, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
 		}
 		return true;
@@ -65,7 +65,7 @@ namespace AsioNet
 			auto head = sendBuffer.DetachHead();
 			if (head)
 			{
-				async_write(sock_, boost::asio::buffer(head->buffer, head->pos),
+				async_write(sock_, boost::asio::buffer(head->buffer, head->wpos),
 					boost::bind(&TcpConn::write_handler, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
 			}
 		}
@@ -103,7 +103,7 @@ namespace AsioNet
 					self->err_handler(ec);
 					return;
 				}
-				self->poller->PushRecv(self->readBuffer, trans);
+				self->poller->PushRecv(self->GetKey(),self->readBuffer, trans);
 				async_read(self->sock_, boost::asio::buffer(self->readBuffer, sizeof(AN_Msg::len)),
 					boost::bind(&TcpConn::read_handler, self, boost::placeholders::_1, boost::placeholders::_2));
 			});
@@ -112,7 +112,7 @@ namespace AsioNet
 	void TcpConn::err_handler(const NetErr& err)	// 关闭socket，错误输出
 	{
 		NetErr ne;
-		poller->PushDisconnect(sock_.remote_endpoint(ne));// 通知上层链接关闭
+		poller->PushDisconnect(GetKey());// 通知上层链接关闭
 		Close();	// 关闭链接
 	}
 
@@ -157,9 +157,7 @@ namespace AsioNet
 			return;
 		}
 		NetErr err;
-		poller->PushConnect(sock_.remote_endpoint(err));
+		poller->PushConnect(GetKey());
 		StartRead();
 	}
-
-
 }

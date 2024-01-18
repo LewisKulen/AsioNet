@@ -34,8 +34,7 @@ namespace AsioNet
 			// 当client conn断开连接时，自动释放conn资源
 			auto conn = std::make_shared<TcpConn>(std::move(cli));
 
-			NetErr err;
-			conn->poller->PushAccept(conn->sock_.remote_endpoint(err));
+			conn->poller->PushAccept(conn->GetKey());
 			conn->StartRead();
 
 			self->doAccept();
