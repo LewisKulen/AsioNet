@@ -1,23 +1,34 @@
 #pragma once
+
 #include "AsioNetDef.h"
-#include <thread>
-#include "Event.h"
+#include "event/IEventPoller.h"
+#include "event/IEventHandler.h"
+#include "tcp/TcpServer.h"
+#include <map>
 
 namespace AsioNet
 {
 
     /*
-    NetMgr
-      |\____
-    Server  |
-      \___Conn--Poller--Handler
+    NetMgr------>DefaultPoller--Handler
+      |  \          ^
+      |   \         |
+    Server \    IEventPoller
+      \___Conn_____/
     
     */
+    class TcpServerMgr{
+    public:
+      std::shared_ptr<TcpServer> GetServer(ServerKey);
+      void AddServer(std::shared_ptr<TcpServer>);
+      ~TcpServerMgr();
+    private:
+      std::mutex m_lock;
+      std::map<ServerKey,std::shared_ptr<TcpServer>> servers;
+    };
 
-    // 外部只能拿到一个NetKey,提供一个转化成addr的函数
-    NetAddr NetKey2Addr(NetKey);
-
-    struct TcpNetMgr {
+    class TcpNetMgr {
+    public:
         TcpNetMgr() = delete;
         TcpNetMgr(const TcpNetMgr&) = delete;
         TcpNetMgr& operator=(const TcpNetMgr&) = delete;
@@ -25,13 +36,17 @@ namespace AsioNet
         TcpNetMgr(size_t th_num/*线程数量*/,IEventHandler*);
         ~TcpNetMgr();
 
-        void Serve(unsigned short port/*,options*/);
-        void Connect(std::string ip, unsigned short port/*,options*/);        
-        bool Send(NetKey, const char* data, size_t trans);
+        ServerKey Serve(unsigned short port/*,options*/);
+        bool ServerSend(NetKey, const char* data, size_t trans);
+        bool Broadcast(ServerKey, const char* data, size_t trans);
 
+        void Connect(std::string ip, unsigned short port/*,options*/);       
+        bool Send(NetKey, const char* data, size_t trans);
     private:
         io_ctx ctx;
-        std::vector<std::thread> th_pool;
+        std::vector<std::thread> thPool;
         IEventPoller* ptr_poller;
+        TcpConnMgr connMgr;
+        TcpServerMgr serverMgr;
     };
 }

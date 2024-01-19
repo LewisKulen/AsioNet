@@ -5,7 +5,6 @@
 #include <utility>	// std::move
 #include <mutex>
 
-extern std::mutex g_lock;
 
 namespace AsioNet {
 
@@ -14,9 +13,8 @@ namespace AsioNet {
 	using TcpEndPoint = boost::asio::ip::tcp::endpoint;
 
 	using NetErr = boost::system::error_code;
-	using _lock_guard_ = std::lock_guard<std::mutex>;
-
-#define AN_INTERFACE
+	
+#define _lock_guard_(l) std::lock_guard<std::mutex>guard(l);
 
 	struct AN_Msg {
 		unsigned short len;
@@ -25,22 +23,11 @@ namespace AsioNet {
 	constexpr size_t AN_MSG_MAX_SIZE = (1 << (sizeof(AN_Msg::len) * 8)) - 1;
 
 	using NetKey = unsigned long long;	// addr:port
+	using ServerKey = unsigned short;
+
     struct NetAddr{
         std::string ip;
         unsigned short port;
     };
 
-	template<typename T>
-	class Singleton {
-	public:
-		T* GetInstance()
-		{
-			static T m_;
-			return &m_;
-		}
-	protected:
-		Singleton() {}
-	};
-
-	
 }

@@ -9,8 +9,6 @@
 
 // #include <boost/thread.hpp>
 
-unsigned short port_ = 8888;
-
 struct TestServerHandler:public AsioNet::IEventHandler{
     void AcceptHandler(AsioNet::NetKey){};
     void ConnectHandler(AsioNet::NetKey){};
