@@ -25,6 +25,9 @@ namespace AsioNet {
 	using NetKey = unsigned long long;	// addr:port
 	using ServerKey = unsigned short;
 
+	const NetKey INVALID_NET_KEY = 0;
+	const ServerKey INVALID_SERVER_KEY = 0;
+
     struct NetAddr{
         std::string ip;
         unsigned short port;

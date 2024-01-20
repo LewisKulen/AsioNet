@@ -44,10 +44,21 @@ namespace AsioNet
 		});
 		m_recvBuffer.Push(data,trans);
 	}
-
-	void DefaultEventPoller::PopOne()
+	void DefaultEventPoller::PushError(NetKey k, const NetErr& err)
 	{
 		_lock_guard_(m_lock);
+		m_events.push(NetEvent{
+			k,EventType::Error
+			});
+		m_errs.push(err);
+	}
+	bool DefaultEventPoller::PopOne()
+	{
+		_lock_guard_(m_lock);
+		if (m_events.empty()) {
+			return false;
+		}
+
 		auto e = m_events.front();
 		switch(e.type){
 			case EventType::Recv:
@@ -62,16 +73,23 @@ namespace AsioNet
 			}
 			case EventType::Connect:
 			{
-				ptr_handler->AcceptHandler(e.key);
+				ptr_handler->ConnectHandler(e.key);
 				break;	
 			}
 			case EventType::Disconnect:
 			{
-				ptr_handler->AcceptHandler(e.key);
+				ptr_handler->DisconnectHandler(e.key);
+				break;
+			}
+			case EventType::Error :
+			{
+				ptr_handler->ErrorHandler(e.key, m_errs.front());
+				m_errs.pop();
 				break;
 			}
 		}
-
 		m_events.pop();
+		return true;
 	}
+
 }

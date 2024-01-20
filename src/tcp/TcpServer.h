@@ -5,11 +5,12 @@
 
 namespace AsioNet
 {
-	class TcpConnMgr{
+	class TcpConnMgr:public ITcpConnOwner {
 	public:
+		void DelConn(NetKey) override;
+		void AddConn(std::shared_ptr<TcpConn>) override;
+
 		std::shared_ptr<TcpConn> GetConn(NetKey);
-		void DelConn(NetKey);
-		void AddConn(std::shared_ptr<TcpConn>);
 		void Broadcast(const char*,size_t trans);
 
 		~TcpConnMgr();
@@ -27,9 +28,12 @@ namespace AsioNet
 		TcpServer(io_ctx& ctx,IEventPoller* p);
 		~TcpServer();
 		void Serve(unsigned short port);
+
+		void Disconnect(NetKey);
 		void Broadcast(const char*,size_t trans);
 		std::shared_ptr<TcpConn> GetConn(NetKey k);
-		ServerKey TcpServer::GetKey();
+		ServerKey GetKey();
+
 	protected:
 		void doAccept();
 	private:

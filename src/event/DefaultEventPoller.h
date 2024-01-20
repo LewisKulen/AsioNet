@@ -16,6 +16,7 @@ namespace AsioNet
 		Connect,
 		Disconnect,
 		Recv,
+		Error,
 	};
 	struct NetEvent
 	{
@@ -29,20 +30,22 @@ namespace AsioNet
 	{
 	public:
 		DefaultEventPoller(IEventHandler*);
-		~DefaultEventPoller(){};
+		~DefaultEventPoller();
 
 		void PushAccept(NetKey k) override;
 		void PushConnect(NetKey k) override;
 		void PushDisconnect(NetKey k) override;
 		void PushRecv(NetKey k, const char *data, size_t trans) override;
+		void PushError(NetKey k,const NetErr&);
 
-		void PopOne();
+		bool PopOne();
 
 	protected:
 	private:
 		IEventHandler *ptr_handler;
 		std::mutex m_lock;
 		std::queue<NetEvent> m_events;
+		std::queue<NetErr> m_errs;
 		BlockBuffer<DEFAULT_POLLER_BUFFER_SIZE,
 					DEFAULT_POLLER_BUFFER_EXTEND_NUM> m_recvBuffer;
 	};

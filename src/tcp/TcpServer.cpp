@@ -14,7 +14,11 @@ namespace AsioNet
 	void TcpConnMgr::DelConn(NetKey k)
 	{
 		_lock_guard_(m_lock);
-		conns.erase(k);
+		auto itr = conns.find(k);
+		if (itr != conns.end()) {
+			itr->second->Close();
+			conns.erase(itr);
+		}
 	}
 	void TcpConnMgr::AddConn(std::shared_ptr<TcpConn> conn)
 	{
@@ -22,8 +26,8 @@ namespace AsioNet
 		if(!conn){
 			return;
 		}
-		if(conns.find(conn->GetKey()) == conns.end()){
-			conns[conn->GetKey()] = conn;
+		if(conns.find(conn->Key()) == conns.end()){
+			conns[conn->Key()] = conn;
 		}
 	}
 	void TcpConnMgr::Broadcast(const char* data,size_t trans)
@@ -40,7 +44,7 @@ namespace AsioNet
 	// ************************************************************
 
 	TcpServer::TcpServer(io_ctx& ctx,IEventPoller* p):
-		m_acceptor(ctx),ptr_poller(p)
+		m_acceptor(ctx),ptr_poller(p),m_key(0)
 	{}
 
 	TcpServer::~TcpServer()
@@ -68,11 +72,15 @@ namespace AsioNet
 
 			// 当client conn断开连接时，自动释放conn资源
 			auto conn = std::make_shared<TcpConn>(std::move(cli),self->ptr_poller);
+
+			conn->SetOwner(&(self->connMgr));
+			
+			// 这里顺序不能错
+			// 如果PushAccept之后立即Write，要保证此时connMgr里面有
+			// PushAccept显然要在PushRecv之前，遂采用如下顺序
+			self->connMgr.AddConn(conn);
+			self->ptr_poller->PushAccept(conn->Key());
 			conn->StartRead();
-			{
-				self->connMgr.AddConn(conn);
-			}
-			conn->ptr_poller->PushAccept(conn->GetKey());
 
 			self->doAccept();
 		});
@@ -86,6 +94,11 @@ namespace AsioNet
 	std::shared_ptr<TcpConn> TcpServer::GetConn(NetKey k)
 	{
 		return connMgr.GetConn(k);
+	}
+
+	void TcpServer::Disconnect(NetKey k)
+	{
+		return connMgr.DelConn(k);
 	}
 
 	ServerKey TcpServer::GetKey()

@@ -1,9 +1,10 @@
 #pragma once
 
 #include "AsioNetDef.h"
-#include "event/IEventPoller.h"
 #include "event/IEventHandler.h"
 #include "tcp/TcpServer.h"
+#include "event/DefaultEventPoller.h"
+
 #include <map>
 
 namespace AsioNet
@@ -27,6 +28,7 @@ namespace AsioNet
       std::map<ServerKey,std::shared_ptr<TcpServer>> servers;
     };
 
+    // 这是一个对客户端友好的NetMgr
     class TcpNetMgr {
     public:
         TcpNetMgr() = delete;
@@ -36,16 +38,20 @@ namespace AsioNet
         TcpNetMgr(size_t th_num/*线程数量*/,IEventHandler*);
         ~TcpNetMgr();
 
+        // 直到把当前的请求全部处理完才结束，占用调用者的线程资源
+        void Update();
         ServerKey Serve(unsigned short port/*,options*/);
-        bool ServerSend(NetKey, const char* data, size_t trans);
-        bool Broadcast(ServerKey, const char* data, size_t trans);
+        void Broadcast(ServerKey, const char* data, size_t trans);
 
-        void Connect(std::string ip, unsigned short port/*,options*/);       
+        // retry：连接失败后的重试次数
+        void Connect(std::string ip, unsigned short port,int retry = 1/*,options*/);       
+        void Disconnect(NetKey);
         bool Send(NetKey, const char* data, size_t trans);
+
     private:
         io_ctx ctx;
         std::vector<std::thread> thPool;
-        IEventPoller* ptr_poller;
+        DefaultEventPoller m_poller;
         TcpConnMgr connMgr;
         TcpServerMgr serverMgr;
     };

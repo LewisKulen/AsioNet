@@ -24,38 +24,15 @@ struct BlockElem {
 		return 0;
 	}
 
-	// 尝试将数据全部写入这个Block，如果剩余buffer不足，则不写入
-	size_t WriteAll(const char* data, size_t trans)
-	{
-		size_t remain = V_BUFFER_SIZE >= wpos ? V_BUFFER_SIZE - wpos : 0;
-		if (remain >= trans)
-		{
-			memcpy_s(buffer + wpos, remain, data, trans);
-			wpos += trans;
-			return trans;
-		}
-		return 0;
-	}
 	bool IsFull()
 	{
 		return wpos >= V_BUFFER_SIZE;
 	}
 
-	char* Read(size_t r)
-	{
-		char* data = buffer + rpos;
-		rpos += r;
-		return data;
-	}
-
-	bool Empty()
-	{
-		return rpos >= wpos;
-	}
 	char buffer[V_BUFFER_SIZE];
 	size_t wpos;	// 写偏移
-	size_t rpos;	// 读偏移,max = V_BUFFER_SIZE
 	BlockElem<V_BUFFER_SIZE>* next;
+	bool done;
 };
 
 template<size_t V_BUFFER_SIZE/*每个buffer的大小*/,
@@ -132,6 +109,50 @@ private:
 	MemPool_ThreadUnsafe<BlockElem<V_BUFFER_SIZE>> m_pool;
 };
 
+
+template<size_t V_BUFFER_SIZE>
+struct BlockElem_1 {
+	// 尝试将数据全部写入这个Block，如果剩余buffer不足，则不写入
+	size_t WriteAll(const char* data, size_t trans)
+	{
+		size_t remain = V_BUFFER_SIZE >= wpos ? V_BUFFER_SIZE - wpos : 0;
+		if (remain >= trans)
+		{
+			memcpy_s(buffer + wpos, remain, data, trans);
+			wpos += trans;
+			return trans;
+		}
+		return 0;
+	}
+	bool IsFull()
+	{
+		return wpos >= V_BUFFER_SIZE;
+	}
+	char* Read(size_t r)
+	{
+		char* data = buffer + rpos;
+		rpos += r;
+		return data;
+	}
+	bool Empty()
+	{
+		return rpos >= wpos;
+	}
+	bool IsDone()
+	{
+		return done;
+	}
+	void Done()
+	{
+		done = true;
+	}
+	char buffer[V_BUFFER_SIZE];
+	size_t wpos;	// 写偏移
+	size_t rpos;	// 读偏移,max = V_BUFFER_SIZE
+	BlockElem_1<V_BUFFER_SIZE>* next;
+	bool done;
+};
+
 template<size_t V_BUFFER_SIZE/*每个buffer的大小*/,
 			size_t V_EXTEND_NUM/*每次扩充的大小*/>
 class BlockBuffer {
@@ -166,6 +187,7 @@ public:
 
 		if(tail->WriteAll(data,trans) != trans)
 		{
+			tail->Done();
 			tail->next = m_pool.New();
 			tail = tail->next;
 			tail->WriteAll(data,trans);
@@ -186,8 +208,10 @@ public:
 		memcpy_s(*in,len,buf,len);
 		*s = len;
 
-		if(head->Empty())
+		if(head->IsDone() && head->Empty())
 		{
+			auto p = head;
+			m_pool.Del(p);
 			head = head->next;
 		}
 
@@ -203,15 +227,17 @@ public:
 		}
 		size_t len = que.front();
 		char* buf = head->Read(len);
-		if(head->Empty())
+		if(head->IsDone() && head->Empty())
 		{
+			auto p = head;
+			m_pool.Del(p);
 			head = head->next;
 		}
 		que.pop();
 		return std::string(buf,len);
 	}
 private:
-	BlockElem<V_BUFFER_SIZE>* head, * tail;
-	MemPool_ThreadUnsafe<BlockElem<V_BUFFER_SIZE>> m_pool;
+	BlockElem_1<V_BUFFER_SIZE>* head, * tail;
+	MemPool_ThreadUnsafe<BlockElem_1<V_BUFFER_SIZE>> m_pool;
 	std::queue<size_t> que;
 };

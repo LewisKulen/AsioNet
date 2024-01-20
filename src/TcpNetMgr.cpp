@@ -1,4 +1,4 @@
-#include "AsioNet.h"
+#include "TcpNetMgr.h"
 #include "event/DefaultEventPoller.h"
 
 #include <chrono>
@@ -24,13 +24,14 @@ namespace AsioNet
 			servers[s->GetKey()] = s;
 		}
 	}
+	TcpServerMgr::~TcpServerMgr()
+	{}
 
 // ************************************************
 
-	TcpNetMgr::TcpNetMgr(size_t th_num, IEventHandler *h)
+	TcpNetMgr::TcpNetMgr(size_t th_num, IEventHandler *h):
+		m_poller(h)
 	{
-		ptr_poller = new DefaultEventPoller(h);
-
 		for (size_t i = 0; i < th_num; i++)
 		{
 			// std::move
@@ -51,39 +52,32 @@ namespace AsioNet
 		{
 			t.join();
 		}
-		if (ptr_poller)
-		{
-			delete ptr_poller;
-		}
 	}
 
-	void TcpNetMgr::Connect(std::string ip, unsigned short port /*,options*/)
+	void TcpNetMgr::Connect(std::string ip, unsigned short port,int retry/*,options*/)
 	{
-		auto conn = std::make_shared<TcpConn>(ctx,ptr_poller);
-		// connMgr.AddConn(conn);	// 连接还没有真正建立
-		conn->Connect(ip, port);
+		auto conn = std::make_shared<TcpConn>(ctx, &m_poller);
+		// 连接并没有成功建立，这里不应该调用AddConn
+		conn->SetOwner(&connMgr);
+		conn->Connect(ip, port, retry);
 	}
 
 	ServerKey TcpNetMgr::Serve(unsigned short port /*,options*/)
 	{
-		auto s = std::make_shared<TcpServer>(ctx);
-		serverMgr.AddServer(s);
+		auto s = std::make_shared<TcpServer>(ctx, &m_poller);
 		s->Serve(port);
+		serverMgr.AddServer(s);
 		return s->GetKey();
 	}
 
-	bool TcpNetMgr::Send(NetKey k, const char *data, size_t trans)
+	bool TcpNetMgr::Send(NetKey k, const char* data, size_t trans)
 	{
 		auto conn = connMgr.GetConn(k);
-		if(conn){
-			return conn->Write(data,trans);
+		if (conn) {
+			return conn->Write(data, trans);
 		}
-		return false;
-	}
 
-	bool TcpNetMgr::ServerSend(NetKey k, const char* data, size_t trans)
-	{
-		ServerKey sk = k & 0xff;
+		ServerKey sk = k & 0xffff;
 		auto server = serverMgr.GetServer(sk);
 		if(server){
 			auto client = server->GetConn(k);
@@ -94,4 +88,29 @@ namespace AsioNet
 		}
 		return false;
 	}
+
+	void TcpNetMgr::Broadcast(ServerKey sk, const char* data, size_t trans)
+	{
+		auto server = serverMgr.GetServer(sk);
+		if (server) {
+			server->Broadcast(data,trans);
+		}
+	}
+
+	void TcpNetMgr::Disconnect(NetKey k)
+	{
+		connMgr.DelConn(k);
+
+		ServerKey sk = k & 0xff;
+		auto server = serverMgr.GetServer(sk);
+		if (server) {
+			server->Disconnect(k);
+		}
+	}
+
+	void TcpNetMgr::Update()
+	{
+		while (m_poller.PopOne());
+	}
+
 }
