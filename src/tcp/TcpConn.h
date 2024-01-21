@@ -10,6 +10,7 @@ namespace AsioNet
 
 	// doc:https://www.boost.org/doc/libs/1_84_0/doc/html/boost_asio/reference/ip__tcp/socket.html
 	constexpr unsigned int SEND_BUFFER_SIZE = 8 * 1024;// AN_MSG_MAX_SIZE;
+	// constexpr unsigned int SEND_BUFFER_SIZE = AN_MSG_MAX_SIZE;// AN_MSG_MAX_SIZE;
 	const unsigned int SEND_BUFFER_EXTEND_NUM = 2;
 	class TcpConn : public std::enable_shared_from_this<TcpConn>
 	{
@@ -67,9 +68,7 @@ namespace AsioNet
 	private:
 		TcpSock m_sock;
 		std::mutex sendLock;
-		// 缺点：
-		// 缓冲区大小修改起来得重新编译,
-		// 每个sendBuffer区分开来，体现不出内存池的效率，这个考虑重写
+		// 缺点：缓冲区大小修改起来得重新编译
 		BlockSendBuffer<SEND_BUFFER_SIZE,
 			SEND_BUFFER_EXTEND_NUM> sendBuffer;
 		char readBuffer[AN_MSG_MAX_SIZE];

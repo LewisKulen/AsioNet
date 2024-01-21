@@ -124,10 +124,6 @@ struct BlockElem_1 {
 		}
 		return 0;
 	}
-	bool IsFull()
-	{
-		return wpos >= V_BUFFER_SIZE;
-	}
 	char* Read(size_t r)
 	{
 		char* data = buffer + rpos;
@@ -203,10 +199,6 @@ public:
 		{
 			return false;
 		}
-		size_t len = que.front();
-		char* buf = head->Read(len);
-		memcpy_s(*in,len,buf,len);
-		*s = len;
 
 		if(head->IsDone() && head->Empty())
 		{
@@ -214,6 +206,11 @@ public:
 			m_pool.Del(p);
 			head = head->next;
 		}
+
+		size_t len = que.front();
+		char* buf = head->Read(len);
+		memcpy_s(*in, len, buf, len);
+		*s = len;
 
 		que.pop();
 		return true;
@@ -225,14 +222,15 @@ public:
 		{
 			return "";
 		}
-		size_t len = que.front();
-		char* buf = head->Read(len);
 		if(head->IsDone() && head->Empty())
 		{
 			auto p = head;
 			m_pool.Del(p);
 			head = head->next;
 		}
+
+		size_t len = que.front();
+		char* buf = head->Read(len);
 		que.pop();
 		return std::string(buf,len);
 	}

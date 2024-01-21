@@ -1,8 +1,6 @@
 #include "TcpNetMgr.h"
 #include "event/DefaultEventPoller.h"
 
-#include <chrono>
-
 namespace AsioNet
 {
 // ************************************************
