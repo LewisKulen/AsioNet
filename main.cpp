@@ -110,11 +110,7 @@ public:
 	}
 
 	void AcceptHandler(AsioNet::NetKey k) override
-	{
-		auto remote = AsioNet::NetKey2Addr(k);
-		auto local = AsioNet::NetKey2ServerKey(k);
-		printf("accept[%d]:[%s:%d]\n", local, remote.ip.c_str(), remote.port);
-	}
+	{}
 	void ConnectHandler(AsioNet::NetKey k) override
 	{
 		auto remote = AsioNet::NetKey2Addr(k);
@@ -137,13 +133,10 @@ public:
 			if (que.front() != data)
 			{
 				hasErr = true;
-				//printf("check error:send [%s],recv[%s]!\n",que.front().c_str(),data.c_str());
 			}
 			que.pop();
 		}
 		// printf("recv from[%s:%d]:%s\n", remote.ip.c_str(), remote.port, data.c_str());
-		// echo
-		// netMgr.Send(k, data.c_str(), data.length());
 	}
 	void ErrorHandler(AsioNet::NetKey, const AsioNet::NetErr& err) override
 	{
@@ -159,10 +152,6 @@ private:
 	std::queue<std::string > que;
 };
 
-// 测试结果：
-// 客户端内存始终保持在2MB左右，即使后期一直发送长度在上万长度的数据（此时收发缓冲区基本都被堆到了最大了）
-// 服务器每个客户端大概占用，0.5M左右的内存，内存消耗都堆积在消息队列中，就看消息处理速度有多快
-
 int main()
 {
 	TestServer s;
@@ -173,14 +162,3 @@ int main()
 
 	return 0;
 }
-
-/*
-send[abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwx]
-recv[]!
-
-send[abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxy]
-recv[abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxa]!
-
-
-
-*/
