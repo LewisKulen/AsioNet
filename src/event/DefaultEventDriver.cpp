@@ -1,36 +1,37 @@
-#include "DefaultEventPoller.h"
+#include "DefaultEventDriver.h"
 
 namespace AsioNet
 {
-	DefaultEventPoller::DefaultEventPoller(IEventHandler* h)
+	DefaultEventDriver::DefaultEventDriver(IEventHandler* h)
 	{
 		ptr_handler = h;
+		memset(m_tempBuffer,0,sizeof(m_tempBuffer));
 	}
-	DefaultEventPoller::~DefaultEventPoller()
+	DefaultEventDriver::~DefaultEventDriver()
 	{}
 
-	void DefaultEventPoller::PushAccept(NetKey k)
+	void DefaultEventDriver::PushAccept(NetKey k)
 	{
 		_lock_guard_(m_lock);
 		m_events.push(NetEvent{
 			k,EventType::Accept
 		});
 	}
-	void DefaultEventPoller::PushConnect(NetKey k)
+	void DefaultEventDriver::PushConnect(NetKey k)
 	{
 		_lock_guard_(m_lock);
 		m_events.push(NetEvent{
 			k,EventType::Connect
 		});
 	}
-	void DefaultEventPoller::PushDisconnect(NetKey k)
+	void DefaultEventDriver::PushDisconnect(NetKey k)
 	{
 		_lock_guard_(m_lock);
 		m_events.push(NetEvent{
 			k,EventType::Disconnect
 		});
 	}
-	void DefaultEventPoller::PushRecv(NetKey k,const char* data, size_t trans)
+	void DefaultEventDriver::PushRecv(NetKey k,const char* data, size_t trans)
 	{
 		// 同一个库在Send的时候保证trans>0才行，
 		// 如果是别的库Send的数据长度是0，这里校验一下
@@ -44,7 +45,7 @@ namespace AsioNet
 		});
 		m_recvBuffer.Push(data,trans);
 	}
-	void DefaultEventPoller::PushError(NetKey k, const NetErr& err)
+	void DefaultEventDriver::PushError(NetKey k, const NetErr& err)
 	{
 		_lock_guard_(m_lock);
 		m_events.push(NetEvent{
@@ -52,7 +53,7 @@ namespace AsioNet
 			});
 		m_errs.push(err);
 	}
-	bool DefaultEventPoller::PopOne()
+	bool DefaultEventDriver::PopOne()
 	{
 		_lock_guard_(m_lock);
 		if (m_events.empty()) {
@@ -63,7 +64,12 @@ namespace AsioNet
 		switch(e.type){
 			case EventType::Recv:
 			{
-				ptr_handler->RecvHandler(e.key,m_recvBuffer.PopToString());
+				// 内部以效率最高的方式来，减少拷贝
+				char* d = nullptr;
+				size_t len = m_recvBuffer.PopUnsafe(&d);
+				// 1.find router
+				// 2.handler
+				ptr_handler->RecvHandler(e.key,d,len);
 				break;
 			}
 			case EventType::Accept:
@@ -81,7 +87,7 @@ namespace AsioNet
 				ptr_handler->DisconnectHandler(e.key);
 				break;
 			}
-			case EventType::Error :
+			case EventType::Error:
 			{
 				ptr_handler->ErrorHandler(e.key, m_errs.front());
 				m_errs.pop();

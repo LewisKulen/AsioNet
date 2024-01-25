@@ -14,13 +14,12 @@ namespace AsioNet
 	const unsigned int SEND_BUFFER_EXTEND_NUM = 2;
 	class TcpConn : public std::enable_shared_from_this<TcpConn>
 	{
-		// 紧耦合，friend
-		friend class TcpServer;
 	public:
 		TcpConn() = delete;
 		TcpConn(const TcpConn&) = delete;
+		TcpConn(TcpConn&&) = delete;
 		TcpConn& operator=(const TcpConn&) = delete;
-
+		TcpConn& operator=(TcpConn&&) = delete;
 
 		// 使用说明：请配合shared_ptr使用，直接在栈上使用即可
 		// auto conn = std::make_shared<TcpConn>(ctx, ptr_poller);
@@ -30,10 +29,10 @@ namespace AsioNet
 		// 请不要再没有连接成功时，自己调用owner->AddConn,逻辑上也不正确
 		TcpConn(io_ctx& ctx, IEventPoller* p);
 
-		// TcpServer在accept时专用的构造
+		// TcpServer在accept时使用
 		// auto conn = std::make_shared<TcpConn>(remote, ptr_poller);
 		// conn->SetOwner(ITcpConnOwner* owner);	
-		// owner->AddConn(conn);	// 这里因为连接已经成功了，所以直接Add是合理的
+		// owner->AddConn(conn);	// 这里因为连接已经成功了，直接在Conn外部Add是合理的
 		TcpConn(TcpSock&& sock, IEventPoller* p);
 		
 		~TcpConn();
@@ -53,12 +52,12 @@ namespace AsioNet
 		// 只会调用一次
 		void Close();
 
+		// 只能在connect/accept成功了之后使用
+		void StartRead(); 
+		
 		NetKey Key();
 	protected:
 		void init();
-
-		// 只能在connect/accept成功了之后使用
-		void StartRead(); 
 
 		void read_handler(const NetErr&, size_t);
 		void write_handler(const NetErr&, size_t);

@@ -7,6 +7,7 @@
 #include "../include/AsioNetDef.h"
 
 #include <queue>
+#include <map>
 
 namespace AsioNet
 {
@@ -24,13 +25,28 @@ namespace AsioNet
 		EventType type;
 	};
 	
+	struct IProtoBuf{};
+	struct Proto:public IProtoBuf{};
+	
+	struct IRouter{
+		virtual void Handle(const NetKey,const IProtoBuf&/*为了编译过*/) = 0;
+		virtual ~IRouter(){}
+	};
+	
+	template<class Proto>
+	class Router:public IRouter{
+		void Handle(const NetKey,const pb&/*为了编译过*/) = 0;
+		Proto GetPb(){return Proto()};	// PraseFromArray
+	};
+
+
 	const unsigned int DEFAULT_POLLER_BUFFER_SIZE = AN_MSG_MAX_SIZE;
 	const unsigned int DEFAULT_POLLER_BUFFER_EXTEND_NUM = 2;
-	class DefaultEventPoller : public IEventPoller
+	class DefaultEventDriver : public IEventPoller
 	{
 	public:
-		DefaultEventPoller(IEventHandler*);
-		~DefaultEventPoller();
+		DefaultEventDriver(IEventHandler*);
+		~DefaultEventDriver();
 
 		void PushAccept(NetKey k) override;
 		void PushConnect(NetKey k) override;
@@ -40,6 +56,9 @@ namespace AsioNet
 
 		bool PopOne();
 
+		void AddRouter(size_t id,IRouter*);
+
+
 	protected:
 	private:
 		IEventHandler *ptr_handler;
@@ -48,5 +67,6 @@ namespace AsioNet
 		std::queue<NetErr> m_errs;
 		BlockBuffer<DEFAULT_POLLER_BUFFER_SIZE,
 					DEFAULT_POLLER_BUFFER_EXTEND_NUM> m_recvBuffer;
+		char m_tempBuffer[AN_MSG_MAX_SIZE];
 	};
 }

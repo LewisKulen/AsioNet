@@ -2,7 +2,7 @@
 
 #include "AsioNetDef.h"
 #include "event/IEventHandler.h"
-#include "event/DefaultEventPoller.h"
+#include "event/DefaultEventDriver.h"
 #include "tcp/TcpServer.h"
 
 #include <map>
@@ -28,7 +28,6 @@ namespace AsioNet
       std::map<ServerKey,std::shared_ptr<TcpServer>> servers;
     };
 
-    // 这是一个对客户端友好的NetMgr
     class TcpNetMgr {
     public:
         TcpNetMgr() = delete;
@@ -51,8 +50,9 @@ namespace AsioNet
     private:
         io_ctx ctx;
         std::vector<std::thread> thPool;
-        DefaultEventPoller m_poller;
+        DefaultEventDriver m_poller;
         TcpConnMgr connMgr;
         TcpServerMgr serverMgr;
     };
+
 }

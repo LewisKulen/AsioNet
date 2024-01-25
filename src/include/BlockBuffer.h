@@ -193,11 +193,11 @@ public:
 	}
 
 	// 将数据写入传进的buffer中
-	bool Pop(char** in,size_t* s)
+	size_t Pop(char* in)
 	{
 		if (!head || que.empty())
 		{
-			return false;
+			return 0;
 		}
 
 		if(head->IsDone() && head->Empty())
@@ -209,11 +209,11 @@ public:
 
 		size_t len = que.front();
 		char* buf = head->Read(len);
-		memcpy_s(*in, len, buf, len);
-		*s = len;
+
+		memcpy_s(in, len, buf, len);
 
 		que.pop();
-		return true;
+		return len;
 	}
 
 	std::string PopToString()
@@ -233,6 +233,30 @@ public:
 		char* buf = head->Read(len);
 		que.pop();
 		return std::string(buf,len);
+	}
+
+	// 不拷贝数据，直接吧内部指针暴露出去
+	// 只有Pop的时候才会吧上一次空了的block内存Del掉
+	// 所以只要用户及时在外部拷贝走了数据，那么就是安全的
+	size_t PopUnsafe(char** in)
+	{
+		if (!head || que.empty())
+		{
+			return 0;
+		}
+
+		if(head->IsDone() && head->Empty())
+		{
+			auto p = head;
+			m_pool.Del(p);
+			head = head->next;
+		}
+
+		size_t len = que.front();
+		*in = head->Read(len);
+
+		que.pop();
+		return len;
 	}
 private:
 	BlockElem_1<V_BUFFER_SIZE>* head, * tail;
