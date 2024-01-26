@@ -12,6 +12,8 @@ namespace AsioNet {
 	using TcpSock = boost::asio::ip::tcp::socket;
 	using TcpEndPoint = boost::asio::ip::tcp::endpoint;
 
+	using UdpEndPoint = boost::asio::ip::udp::endpoint;
+	using UdpSock = boost::asio::ip::udp::socket;
 	using NetErr = boost::system::error_code;
 	
 #define _lock_guard_(l) std::lock_guard<std::mutex>guard(l);

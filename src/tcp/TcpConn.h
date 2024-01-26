@@ -66,14 +66,14 @@ namespace AsioNet
 
 	private:
 		TcpSock m_sock;
-		std::mutex sendLock;
+		std::mutex m_sendLock;
 		// 缺点：缓冲区大小修改起来得重新编译
 		BlockSendBuffer<SEND_BUFFER_SIZE,
-			SEND_BUFFER_EXTEND_NUM> sendBuffer;
-		char readBuffer[AN_MSG_MAX_SIZE];
+			SEND_BUFFER_EXTEND_NUM> m_sendBuffer;
+		char m_readBuffer[AN_MSG_MAX_SIZE];
 		NetKey m_key;
 		bool m_close;
-		std::mutex closeLock;
+		std::mutex m_closeLock;
 		IEventPoller* ptr_poller;
 		ITcpConnOwner* ptr_owner;
 	};

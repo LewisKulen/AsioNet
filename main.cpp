@@ -2,6 +2,10 @@
 #include "./src/test.h"
 #include "./src/utils.h"
 
+#include "./src/kcp/KcpConn.h"
+#include "./src/event/IEventPoller.h"
+
+
 #include <string>
 #include <iostream>
 #include <chrono>
@@ -152,13 +156,42 @@ private:
 	std::queue<std::string > que;
 };
 
+class KcpPoller:public AsioNet::IEventPoller{
+public:
+	void PushAccept(AsioNet::NetKey k) override
+	{}
+	void PushConnect(AsioNet::NetKey k) override
+	{}
+	void PushDisconnect(AsioNet::NetKey k) override
+	{}
+	void PushRecv(AsioNet::NetKey k, const char *data, size_t trans) override
+	{}
+	void PushError(AsioNet::NetKey k, const AsioNet::NetErr& err) override
+	{
+		printf("[%lld] err:[%s]\n",k,err.message().c_str());
+	}
+};
+
 int main()
 {
-	TestServer s;
-	s.Update();
+	// TestServer s;
+	// s.Update();
 	//TestClient c;
 	//c.DoTest();
 	//printf("client test finish:succ[%d]\n",!(c.hasErr));
+	AsioNet::io_ctx ctx;
+	std::thread th([&ctx]{
+		while(true){
+			ctx.run();
+		}
+	});
+	KcpPoller poller;
+	auto client = std::make_shared<AsioNet::KcpConn>(ctx,&poller);
+	client->Write("12345",5);
 
+	auto server = std::make_shared<AsioNet::KcpConn>(ctx,&poller);
+	
+
+	th.join();
 	return 0;
 }

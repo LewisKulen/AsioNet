@@ -1,5 +1,4 @@
 #include "TcpNetMgr.h"
-#include "event/DefaultEventPoller.h"
 
 namespace AsioNet
 {

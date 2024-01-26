@@ -24,21 +24,6 @@ namespace AsioNet
 		NetKey key;
 		EventType type;
 	};
-	
-	struct IProtoBuf{};
-	struct Proto:public IProtoBuf{};
-	
-	struct IRouter{
-		virtual void Handle(const NetKey,const IProtoBuf&/*为了编译过*/) = 0;
-		virtual ~IRouter(){}
-	};
-	
-	template<class Proto>
-	class Router:public IRouter{
-		void Handle(const NetKey,const pb&/*为了编译过*/) = 0;
-		Proto GetPb(){return Proto()};	// PraseFromArray
-	};
-
 
 	const unsigned int DEFAULT_POLLER_BUFFER_SIZE = AN_MSG_MAX_SIZE;
 	const unsigned int DEFAULT_POLLER_BUFFER_EXTEND_NUM = 2;
@@ -55,10 +40,6 @@ namespace AsioNet
 		void PushError(NetKey k,const NetErr&);
 
 		bool PopOne();
-
-		void AddRouter(size_t id,IRouter*);
-
-
 	protected:
 	private:
 		IEventHandler *ptr_handler;

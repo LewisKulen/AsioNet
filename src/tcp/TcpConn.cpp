@@ -43,10 +43,10 @@ namespace AsioNet
 		auto netLen = boost::asio::detail::socket_ops::
 			host_to_network_short(static_cast<decltype(AN_Msg::len)>(trans));
 
-		_lock_guard_(sendLock);
-		sendBuffer.Push((const char*)(&netLen), sizeof(AN_Msg::len));
-		sendBuffer.Push(data, trans);
-		auto head = sendBuffer.DetachHead();
+		_lock_guard_(m_sendLock);
+		m_sendBuffer.Push((const char*)(&netLen), sizeof(AN_Msg::len));
+		m_sendBuffer.Push(data, trans);
+		auto head = m_sendBuffer.DetachHead();
 		if (head)
 		{
 			async_write(m_sock, boost::asio::buffer(head->buffer, head->wpos),
@@ -63,9 +63,9 @@ namespace AsioNet
 			return;
 		}
 
-		_lock_guard_(sendLock);
-		sendBuffer.FreeDeatched();
-		auto head = sendBuffer.DetachHead();
+		_lock_guard_(m_sendLock);
+		m_sendBuffer.FreeDeatched();
+		auto head = m_sendBuffer.DetachHead();
 		if (head)
 		{
 			async_write(m_sock, boost::asio::buffer(head->buffer, head->wpos),
@@ -74,13 +74,13 @@ namespace AsioNet
 		//else {
 		//	// 可以考虑顺带释放一些发送缓冲区
 		//  // 因为目前发送缓冲区大小是动态分配的，只会扩大，不会缩容
-		//	// sendBuffer.Shrink();
+		//	// m_sendBuffer.Shrink();
 		//}
 	}
 
 	void TcpConn::StartRead()
 	{
-		async_read(m_sock, boost::asio::buffer(readBuffer, sizeof(AN_Msg::len)),
+		async_read(m_sock, boost::asio::buffer(m_readBuffer, sizeof(AN_Msg::len)),
 			boost::bind(&TcpConn::read_handler, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
 	}
 
@@ -93,19 +93,19 @@ namespace AsioNet
 			return;
 		}
 
-		auto netLen = *((decltype(AN_Msg::len)*)readBuffer);
+		auto netLen = *((decltype(AN_Msg::len)*)m_readBuffer);
 		auto hostLen = boost::asio::detail::socket_ops::
 			network_to_host_short(netLen);
 
-		async_read(m_sock, boost::asio::buffer(readBuffer, hostLen),
+		async_read(m_sock, boost::asio::buffer(m_readBuffer, hostLen),
 			[self = shared_from_this()](const NetErr& ec, size_t trans) {
 				if (ec)
 				{
 					self->err_handler(ec);
 					return;
 				}
-				self->ptr_poller->PushRecv(self->Key(),self->readBuffer, trans);
-				async_read(self->m_sock, boost::asio::buffer(self->readBuffer, sizeof(AN_Msg::len)),
+				self->ptr_poller->PushRecv(self->Key(),self->m_readBuffer, trans);
+				async_read(self->m_sock, boost::asio::buffer(self->m_readBuffer, sizeof(AN_Msg::len)),
 					boost::bind(&TcpConn::read_handler, self, boost::placeholders::_1, boost::placeholders::_2));
 			});
 	}
@@ -124,7 +124,7 @@ namespace AsioNet
 			// 关闭了之后，可能还有其他异步操作残存在里面io_ctx里面
 			// 当那些操作被取消后，都会进入error_handler中
 			// 这里只Close一次，防止这些操作不停地向上抛Disconnect
-			_lock_guard_(closeLock);
+			_lock_guard_(m_closeLock);
 			if(m_close){	
 				return;
 			}
@@ -138,10 +138,10 @@ namespace AsioNet
 		ptr_poller->PushDisconnect(Key());// 通知上层链接关闭了
 
 		{
-			// 如果write_handler出错调用Close释放了readBuffer，那么处在read_handler里面的readBuffer是不安全的
-			// 对于readBuffer，其本身就是'单线程'跑，就采用定长数组不释放了，还能少加个锁
-			_lock_guard_(sendLock);
-			sendBuffer.Clear();
+			// 如果write_handler出错调用Close释放了m_readBuffer，那么处在read_handler里面的m_readBuffer是不安全的
+			// 对于m_readBuffer，其本身就是'单线程'跑，就采用定长数组不释放了，还能少加个锁
+			_lock_guard_(m_sendLock);
+			m_sendBuffer.Clear();
 		}
 		NetErr err;
 		m_sock.shutdown(boost::asio::ip::tcp::socket::shutdown_both, err);
