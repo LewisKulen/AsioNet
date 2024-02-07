@@ -23,10 +23,11 @@ namespace AsioNet {
 		// char data[0];
 	};
 	constexpr size_t AN_MSG_MAX_SIZE = (1 << (sizeof(AN_Msg::len) * 8)) - 1;
+	const size_t AN_KCP_BUFFER_SIZE = 4096;
 
 	using NetKey = unsigned long long;	// addr:port
 	using ServerKey = unsigned short;
-
+	
 	const NetKey INVALID_NET_KEY = 0;
 	const ServerKey INVALID_SERVER_KEY = 0;
 

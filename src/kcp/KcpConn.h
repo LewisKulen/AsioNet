@@ -9,8 +9,9 @@
 namespace AsioNet
 {
 	struct IKcpConnOwner;	// 前向声明
+	// doc:https://github.com/libinzhangyuan/asio_kcp
 
-	// doc:https://www.boost.org/doc/libs/1_84_0/doc/html/boost_asio/reference/ip__tcp/socket.html
+	// ikcp_allocator:考虑接管内存管理，默认的方式太粗暴
 
 	class KcpConn : public std::enable_shared_from_this<KcpConn>
 	{
@@ -21,37 +22,29 @@ namespace AsioNet
 		KcpConn& operator=(const KcpConn&) = delete;
 		KcpConn& operator=(KcpConn&&) = delete;
 
-		// 使用说明：请配合shared_ptr使用，直接在栈上使用即可
-		// auto conn = std::make_shared<TcpConn>(ctx, ptr_poller);
-		// conn->SetOwner(ITcpConnOwner* owner);	
-		// conn->Connect(... ...);	
-		// 异步连接成功之后，会自动调用owner->AddConn
-		// 请不要再没有连接成功时，自己调用owner->AddConn,逻辑上也不正确
 		KcpConn(io_ctx& ctx, IEventPoller* p);
 
 		~KcpConn();
 
-		// 这个操作不是必须得
-		// 例如：如果不需要管理连接，且全是无状态服务，这个操作就完全不需要,只需如下两步即可
-		// auto conn = std::make_shared<TcpConn>(remote, ptr_poller);
-		// conn->StartRead()
 		void SetOwner(IKcpConnOwner*);
 		
 		bool Write(const char* data, size_t trans);
 
-		// 主动关闭这个连接，一旦关闭连接，就会调用owner->DelConn
-		// owner不应该再继续拥有conn的所有权，因为底层的sock已经关闭，接下来的所有操作都将失败
-		// 只会调用一次
 		void Close();
 
 		NetKey Key();
+		
+		// 只能在connect/accept成功了之后使用
+		void StartRead(); 
+
 	protected:
+	    static int kcpOutPutFunc(const char *buf, int len,ikcpcb *kcp, void *user);
+
 		void init();
 
-        // 只能在connect/accept成功了之后使用
-		void ReadLoop(); 
+		void kcpUpdateFunc();
 
-		void write_handler(const NetErr&, size_t);
+		// void write_handler(const NetErr&, size_t);
 
 		void err_handler(const NetErr&);
 
@@ -60,14 +53,14 @@ namespace AsioNet
         // 依然需要先connect才能发送成功
 		UdpSock m_sock;
         ikcpcb *m_kcp = nullptr;
-		std::mutex m_sendLock;
-		// 缺点：缓冲区大小修改起来得重新编译
-		BlockSendBuffer<1024,2> m_sendBuffer;
-        char m_kcpBuffer[AN_MSG_MAX_SIZE];
+		std::mutex m_kcpLock;
+
+		// BlockSendBuffer<1024,2> m_sendBuffer;
+        // 用于接受kcp协议的buffer，kcp协议经过分片处理，不需要很大，这里看4096比较顺眼就用这个数字了
+		char m_kcpBuffer[AN_KCP_BUFFER_SIZE];
 		char m_readBuffer[AN_MSG_MAX_SIZE];
 		NetKey m_key;
-		bool m_close;
-		std::mutex m_closeLock;
+
 		IEventPoller* ptr_poller;
 		IKcpConnOwner* ptr_owner;
 	};

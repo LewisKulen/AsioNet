@@ -1,18 +1,17 @@
 #include "KcpConn.h"
 #include <iostream>
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 namespace AsioNet
 {
-    void kcpOutPutFunc(const char *buf, int len,ikcpcb *kcp, void *user)
-    {
-        
-    }
-
 	KcpConn::KcpConn(io_ctx& ctx,IEventPoller* p) :
 		m_sock(ctx),ptr_poller(p)
 	{
-        m_kcp = ikcp_create(100,this);
-        ikcp_setoutput(m_kcp,&kcpOutPutFunc);
+        m_kcp = ikcp_create(100,this/*user*/);
+		m_kcp->output = &KcpConn::kcpOutPutFunc;	// ikcp_setoutput(m_kcp,&kcpOutPutFunc);
+
+		ikcp_nodelay(m_kcp, 1, 2, 1, 0);
+
 		init();
 	}
 
@@ -23,66 +22,43 @@ namespace AsioNet
 
 	void KcpConn::init()
 	{
-        
 		m_key = 0;
 		ptr_owner = nullptr;
-		m_close = false;	// 默认开启
 	}
 
-	// 保证连接建立之后，外部才能拿到conn,才能Write
-	// 连接断开之后，外部将失去conn，从而无法write
+    int KcpConn::kcpOutPutFunc(const char *buf, int len,ikcpcb *kcp, void *user)
+    {
+		static NetErr ec;	// 仅为了不要抛异常
+		auto ptr = static_cast<KcpConn*>(user);
+		// 这里不采用async_send的方式发送，因为kcp本身就已经是async发送了(ikcp_update)
+		// 而且udp的发送本来就很快，再改成async_send不仅增加逻辑复杂性，性能可能更低
+		return ptr->m_sock.send(boost::asio::buffer(buf, len),0,ec);
+    }
+
 	bool KcpConn::Write(const char* data, size_t trans)
 	{
 		if (trans > AN_MSG_MAX_SIZE || trans <= 0)
 		{
 			return false;
 		}
-        ikcp_send(m_kcp, data, trans);
-
-		auto netLen = boost::asio::detail::socket_ops::
-			host_to_network_short(static_cast<decltype(AN_Msg::len)>(trans));
-
-		_lock_guard_(m_sendLock);
-		m_sendBuffer.Push((const char*)(&netLen), sizeof(AN_Msg::len));
-		m_sendBuffer.Push(data, trans);
-		auto head = m_sendBuffer.DetachHead();
-		if (head)
+		// 只是将数据放到kcp的发送缓冲区里面，实际的发送在ikcp_update才会有实际的发送
+		_lock_guard_(m_kcpLock);
+		if (!m_kcp)
 		{
-			m_sock.async_send(boost::asio::buffer(head->buffer, head->wpos),
-				boost::bind(&KcpConn::write_handler, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
-		}
-		return true;
-	}
-
-	void KcpConn::write_handler(const NetErr& ec, size_t)
-	{
-		if (ec)
-		{
-			err_handler(ec);
 			return;
 		}
-        printf("send to:[%s][%d] succ\n",
-        m_sock.remote_endpoint().address().to_string().c_str(),
-        m_sock.remote_endpoint().port());
-
-		_lock_guard_(m_sendLock);
-		m_sendBuffer.FreeDeatched();
-		auto head = m_sendBuffer.DetachHead();
-		if (head)
-		{
-			m_sock.async_send(boost::asio::buffer(head->buffer, head->wpos),
-				boost::bind(&KcpConn::write_handler, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
-		}
-		//else {
-		//	// 可以考虑顺带释放一些发送缓冲区
-		//  // 因为目前发送缓冲区大小是动态分配的，只会扩大，不会缩容
-		//	// m_sendBuffer.Shrink();
-		//}
+		
+        return ikcp_send(m_kcp, data, trans) > 0;
 	}
 
-	void KcpConn::ReadLoop()
+	// 问题：
+	// 读，写操作都需要对整个kcp加锁
+	// 而kcp性能依赖于ikcp_update的实际效率
+	void KcpConn::StartRead()
 	{
-		m_sock.async_receive(boost::asio::buffer(m_readBuffer, sizeof(m_readBuffer)),
+		// udp包有界性，一次一定接受一个包，如果m_kcpBuffer不够，则只接受前面那段
+		// 问题：如果对端一直发包，会不会拖垮整个update的性能
+		m_sock.async_receive(boost::asio::buffer(m_kcpBuffer, sizeof(m_kcpBuffer)),
         [self = shared_from_this()](const NetErr& ec, size_t trans){
             if (ec)
             {
@@ -90,14 +66,28 @@ namespace AsioNet
                 return;
             }
 
-            ikcp_input(self->m_kcp,self->m_readBuffer,trans);   // 这里用同一个就行，input内部会把需要的数据拷贝走的
-            int recv = ikcp_recv(self->m_kcp,self->m_readBuffer,sizeof(self->m_readBuffer));
+			{
+				_lock_guard_(self->m_kcpLock);
+				if(!self->m_kcp){	// closed
+					return;
+				}
 
-            // 如果recv < 0,说明收到的不是kcp协议
-            if(recv > 0){   
-                
-            }
-            self->ReadLoop();
+				ikcp_input(self->m_kcp,self->m_kcpBuffer,trans);  
+
+				// 源码分析：ikcp_recv
+				// if (peeksize > len) return -3;
+				// 如果对端发了个基于kcp协议的很大的包，那么这个包就会一直卡在kcp_recv里面，之后的包将再也取不出来
+				// 我这边的buffer如果不够大，那么接下来就再也取不出包了
+				// 先不考虑这些了，先保证正确性
+				// 这里其实用同一个buffer就行，input内部会把需要的数据拷贝走的，这里为了逻辑清楚点就用两个了
+				// 尝试从kcp里面获取一个包
+				int recv = ikcp_recv(self->m_kcp,self->m_readBuffer,sizeof(self->m_readBuffer));
+				if(recv > 0){   
+					self->ptr_poller->PushRecv(self->Key(),self->m_readBuffer,recv);
+				}
+			}
+
+            self->StartRead();
         });
 	}
 
@@ -108,18 +98,18 @@ namespace AsioNet
 		Close();	// 关闭链接
 	}
 
-	// 一旦被关闭了，这个KcpConn就应该直接释放掉,只能调用一次
+	// 一旦被关闭了，这个KcpConn就应该直接释放掉,只调用一次
 	void KcpConn::Close()
 	{
 		{
-			// 关闭了之后，可能还有其他异步操作残存在里面io_ctx里面
-			// 当那些操作被取消后，都会进入error_handler中
-			// 这里只Close一次，防止这些操作不停地向上抛Disconnect
-			_lock_guard_(m_closeLock);
-			if(m_close){	
+			_lock_guard_(m_kcpLock);
+			if (!m_kcp)
+			{
 				return;
 			}
-			m_close = true;
+			
+			ikcp_release(m_kcp);
+			m_kcp = nullptr;
 		}
 
 		if (ptr_owner) {
@@ -128,13 +118,6 @@ namespace AsioNet
 		}
 		ptr_poller->PushDisconnect(Key());// 通知上层链接关闭了
 
-		{
-			// 如果write_handler出错调用Close释放了m_readBuffer，那么处在read_handler里面的m_readBuffer是不安全的
-			// 对于m_readBuffer，其本身就是'单线程'跑，就采用定长数组不释放了，还能少加个锁
-			_lock_guard_(m_sendLock);
-			m_sendBuffer.Clear();
-		}
-        if (m_kcp) ikcp_release(m_kcp);
 		NetErr err;
 		m_sock.shutdown(boost::asio::ip::tcp::socket::shutdown_both, err);
 		m_sock.close(err);	// 通知io_ctx，取消所有m_sock的异步操作
@@ -145,13 +128,13 @@ namespace AsioNet
 	{
 		if(m_key == 0){
 			NetErr err;
-			// TcpEndPoint remote = m_sock.remote_endpoint(err);
+			UdpEndPoint remote = m_sock.remote_endpoint(err);
 			// TcpEndPoint local = m_sock.local_endpoint(err);
-			// if(!err){
-			// 	m_key = (static_cast<unsigned long long>(remote.address().to_v4().to_uint()) << 32)
-			// 			| (static_cast<unsigned long long>(remote.port()) << 16)
-			// 			| static_cast<unsigned long long>(local.port()/*listen port*/);
-			// }
+			if(!err){
+				m_key = (static_cast<unsigned long long>(remote.address().to_v4().to_uint()) << 32)
+						| (static_cast<unsigned long long>(remote.port()) << 16);
+						// | static_cast<unsigned long long>(local.port()/*kcp_id*/);
+			}
 		}
 		return m_key;
 	}
@@ -159,6 +142,19 @@ namespace AsioNet
 	void KcpConn::SetOwner(IKcpConnOwner* o)
 	{
 		ptr_owner = o;
+	}
+
+	void KcpConn::kcpUpdateFunc()
+	{
+		auto ticks = boost::posix_time::microsec_clock::local_time().
+						time_of_day().total_milliseconds();
+
+		_lock_guard_(m_kcpLock);
+		if(!m_kcp){
+			return;
+		}
+		// 参考的asio_kcp代码，recv，send，update都在一个线程中
+		ikcp_update(m_kcp,ticks);
 	}
 }
 
