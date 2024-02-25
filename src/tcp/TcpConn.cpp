@@ -1,4 +1,5 @@
 #include "TcpConn.h"
+#include <utility>	// std::move
 
 namespace AsioNet
 {
@@ -24,7 +25,7 @@ namespace AsioNet
 	void TcpConn::init()
 	{
 		NetErr ec;
-		boost::asio::ip::tcp::no_delay option(true);
+		asio::ip::tcp::no_delay option(true);
 		m_sock.set_option(option, ec);
 		m_key = 0;
 		ptr_owner = nullptr;
@@ -33,6 +34,10 @@ namespace AsioNet
 
 	// 保证连接建立之后，外部才能拿到conn,才能Write
 	// 连接断开之后，外部将失去conn，从而无法write
+
+	// 保证连接建立之后，外部才能拿到conn,才能Write
+// 连接断开之后，外部将失去conn，从而无法write
+	
 	bool TcpConn::Write(const char* data, size_t trans)
 	{
 		if (trans > AN_MSG_MAX_SIZE || trans <= 0)
@@ -40,7 +45,7 @@ namespace AsioNet
 			return false;
 		}
 
-		auto netLen = boost::asio::detail::socket_ops::
+		auto netLen = asio::detail::socket_ops::
 			host_to_network_short(static_cast<decltype(AN_Msg::len)>(trans));
 
 		_lock_guard_(m_sendLock);
@@ -49,8 +54,8 @@ namespace AsioNet
 		auto head = m_sendBuffer.DetachHead();
 		if (head)
 		{
-			async_write(m_sock, boost::asio::buffer(head->buffer, head->wpos),
-				boost::bind(&TcpConn::write_handler, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
+			asio::async_write(m_sock, asio::buffer(head->buffer, head->wpos),
+				std::bind(&TcpConn::write_handler, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
 		}
 		return true;
 	}
@@ -59,7 +64,7 @@ namespace AsioNet
 	{
 		if (ec)
 		{
-			err_handler(ec);
+			err_handler();
 			return;
 		}
 
@@ -68,8 +73,8 @@ namespace AsioNet
 		auto head = m_sendBuffer.DetachHead();
 		if (head)
 		{
-			async_write(m_sock, boost::asio::buffer(head->buffer, head->wpos),
-				boost::bind(&TcpConn::write_handler, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
+			async_write(m_sock, asio::buffer(head->buffer, head->wpos),
+				std::bind(&TcpConn::write_handler, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
 		}
 		//else {
 		//	// 可以考虑顺带释放一些发送缓冲区
@@ -80,8 +85,8 @@ namespace AsioNet
 
 	void TcpConn::StartRead()
 	{
-		async_read(m_sock, boost::asio::buffer(m_readBuffer, sizeof(AN_Msg::len)),
-			boost::bind(&TcpConn::read_handler, shared_from_this(), boost::placeholders::_1, boost::placeholders::_2));
+		async_read(m_sock, asio::buffer(m_readBuffer, sizeof(AN_Msg::len)),
+			bind(&TcpConn::read_handler, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
 	}
 
 	// 同一时刻只会存在一个读/写异步任务存在
@@ -89,31 +94,29 @@ namespace AsioNet
 	{
 		if (ec)
 		{
-			err_handler(ec);
+			err_handler();
 			return;
 		}
 
 		auto netLen = *((decltype(AN_Msg::len)*)m_readBuffer);
-		auto hostLen = boost::asio::detail::socket_ops::
+		auto hostLen = asio::detail::socket_ops::
 			network_to_host_short(netLen);
 
-		async_read(m_sock, boost::asio::buffer(m_readBuffer, hostLen),
+		asio::async_read(m_sock, asio::buffer(m_readBuffer, hostLen),
 			[self = shared_from_this()](const NetErr& ec, size_t trans) {
 				if (ec)
 				{
-					self->err_handler(ec);
+					self->err_handler();
 					return;
 				}
 				self->ptr_poller->PushRecv(self->Key(),self->m_readBuffer, trans);
-				async_read(self->m_sock, boost::asio::buffer(self->m_readBuffer, sizeof(AN_Msg::len)),
-					boost::bind(&TcpConn::read_handler, self, boost::placeholders::_1, boost::placeholders::_2));
+				asio::async_read(self->m_sock, asio::buffer(self->m_readBuffer, sizeof(AN_Msg::len)),
+					std::bind(&TcpConn::read_handler, self, std::placeholders::_1, std::placeholders::_2));
 			});
 	}
 
-	void TcpConn::err_handler(const NetErr& err)	// 关闭socket，错误输出
+	void TcpConn::err_handler()	// 关闭socket，错误输出
 	{
-		ptr_poller->PushError(Key(), err);
-
 		Close();	// 关闭链接
 	}
 
@@ -144,7 +147,7 @@ namespace AsioNet
 			m_sendBuffer.Clear();
 		}
 		NetErr err;
-		m_sock.shutdown(boost::asio::ip::tcp::socket::shutdown_both, err);
+		m_sock.shutdown(asio::ip::tcp::socket::shutdown_both, err);
 		m_sock.close(err);	// 通知io_ctx，取消所有m_sock的异步操作
 		m_key = 0;
 	}
@@ -166,11 +169,10 @@ namespace AsioNet
 
 	void TcpConn::Connect(std::string addr, unsigned short port,int retry)
 	{
-		TcpEndPoint ep(boost::asio::ip::address::from_string(addr.c_str()), port);
+		TcpEndPoint ep(asio::ip::address::from_string(addr.c_str()), port);
 		m_sock.async_connect(ep, [self = shared_from_this(), addr,port, retry](const NetErr& ec) {
 				if (ec)
 				{
-					self->ptr_poller->PushError(self->Key(), ec);
 					if (retry > 0)
 					{
 						self->Connect(addr,port,retry-1);

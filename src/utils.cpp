@@ -6,7 +6,7 @@ namespace AsioNet
 	{
 		NetAddr res;
 		unsigned ip = key >> 32;
-		res.ip = boost::asio::ip::make_address_v4(ip).to_string();
+		res.ip = asio::ip::make_address_v4(ip).to_string();
 		res.port = static_cast<unsigned short>((key & 0xffff0000) >> 16);
 		return res;
 	}

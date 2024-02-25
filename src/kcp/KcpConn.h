@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ikcp.h"
+#include <ikcp.h>
 
 #include "../include/AsioNetDef.h"
 #include "../include/BlockBuffer.h"
@@ -46,7 +46,7 @@ namespace AsioNet
 
 		// void write_handler(const NetErr&, size_t);
 
-		void err_handler(const NetErr&);
+		void err_handler();
 
 	private:
         // bind 会报错

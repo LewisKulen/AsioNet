@@ -5,10 +5,10 @@ namespace AsioNet
 	DefaultEventDriver::DefaultEventDriver(IEventHandler* h)
 	{
 		ptr_handler = h;
-		memset(m_tempBuffer,0,sizeof(m_tempBuffer));
 	}
 	DefaultEventDriver::~DefaultEventDriver()
-	{}
+	{
+	}
 
 	void DefaultEventDriver::PushAccept(NetKey k)
 	{
@@ -39,14 +39,7 @@ namespace AsioNet
 		});
 		m_recvBuffer.Push(data,trans);
 	}
-	void DefaultEventDriver::PushError(NetKey k, const NetErr& err)
-	{
-		_lock_guard_(m_lock);
-		m_events.push(NetEvent{
-			k,EventType::Error
-			});
-		m_errs.push(err);
-	}
+
 	bool DefaultEventDriver::PopOne()
 	{
 		_lock_guard_(m_lock);
@@ -64,7 +57,29 @@ namespace AsioNet
 				size_t len = m_recvBuffer.PopUnsafe(&d);
 				// assert(len != 0);
 				// assert(d != nullptr);
-				ptr_handler->RecvHandler(e.key,d,len);
+				if (len < 4)
+				{
+					return;
+				}
+				
+				unsigned short msgID = 1;
+				unsigned short flag = 2;
+
+				auto itr = m_routers.find(msgID);
+				if (itr != m_routers.end())
+				{
+					// *use one object*
+					Router& router = itr->second;
+					// router.pb->ParseFromArray();
+					router.h->Handle(router.pb);
+					/*	how to use
+					{
+						const MyPb* pb = dynamic_cast<XXX>(proto);
+					}
+					*/
+					// ptr_handler->RecvHandler(e.key, d, len);
+
+				}
 
 
 				// 2.
@@ -76,7 +91,7 @@ namespace AsioNet
 
 				break;
 			}
-			case EventType::Accept:
+			case EventType::Accept:	// 如果用对象的方式，C++如何绕过对象访问权限的问题
 			{
 				ptr_handler->AcceptHandler(e.key);
 				break;
@@ -91,15 +106,13 @@ namespace AsioNet
 				ptr_handler->DisconnectHandler(e.key);
 				break;
 			}
-			case EventType::Error:
-			{
-				ptr_handler->ErrorHandler(e.key, m_errs.front());
-				m_errs.pop();
-				break;
-			}
 		}
 		m_events.pop();
 		return true;
 	}
+}
+
+void func()
+{
 
 }

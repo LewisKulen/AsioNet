@@ -1,4 +1,5 @@
 #include "TcpServer.h"
+#include <utility>	// std::move
 
 namespace AsioNet
 {
@@ -55,9 +56,9 @@ namespace AsioNet
 
 	void TcpServer::Serve(unsigned short port)
 	{
-		TcpEndPoint ep(boost::asio::ip::tcp::v4(), port);
+		TcpEndPoint ep(asio::ip::tcp::v4(), port);
 		m_acceptor.open(ep.protocol());
-		m_acceptor.set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
+		m_acceptor.set_option(asio::ip::tcp::acceptor::reuse_address(true));
 		m_acceptor.bind(ep);
 		m_acceptor.listen();
 		

@@ -1,20 +1,17 @@
 #pragma once
 
-#include <boost/asio.hpp>
-#include <boost/bind/bind.hpp>
-#include <utility>	// std::move
+#include <asio.hpp>
 #include <mutex>
-
 
 namespace AsioNet {
 
-	using io_ctx = boost::asio::io_context;
-	using TcpSock = boost::asio::ip::tcp::socket;
-	using TcpEndPoint = boost::asio::ip::tcp::endpoint;
+	using io_ctx = asio::io_context;
+	using TcpSock = asio::ip::tcp::socket;
+	using TcpEndPoint = asio::ip::tcp::endpoint;
 
-	using UdpEndPoint = boost::asio::ip::udp::endpoint;
-	using UdpSock = boost::asio::ip::udp::socket;
-	using NetErr = boost::system::error_code;
+	using UdpEndPoint = asio::ip::udp::endpoint;
+	using UdpSock = asio::ip::udp::socket;
+	using NetErr = std::error_code;
 	
 #define _lock_guard_(l) std::lock_guard<std::mutex>guard(l);
 
@@ -36,4 +33,7 @@ namespace AsioNet {
         unsigned short port;
     };
 
+	enum class NetErrCode {
+		KCP_RECV_TOO_BIG = 1,
+	};
 }

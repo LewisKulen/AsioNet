@@ -62,7 +62,7 @@ namespace AsioNet
 		void read_handler(const NetErr&, size_t);
 		void write_handler(const NetErr&, size_t);
 
-		void err_handler(const NetErr&);
+		void err_handler();
 
 	private:
 		TcpSock m_sock;

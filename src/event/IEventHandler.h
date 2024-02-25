@@ -11,7 +11,6 @@ namespace AsioNet
 		virtual void AcceptHandler(NetKey) = 0;
 		virtual void ConnectHandler(NetKey) = 0;
 		virtual void DisconnectHandler(NetKey) = 0;
-		virtual void ErrorHandler(NetKey,const NetErr&) = 0;
 		virtual ~IEventHandler() {}
 	};
 }

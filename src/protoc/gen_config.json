@@ -1,0 +1,9 @@
+{
+    "tasks" :[
+        {
+            "gen_type":"cpp",
+            "input":"./proto/*.proto",
+            "output":"./gen/cpp"
+        }
+    ]
+}

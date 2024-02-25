@@ -39,7 +39,7 @@ namespace AsioNet
 	protected:
 		void doAccept();
 	private:
-		boost::asio::ip::tcp::acceptor m_acceptor;
+		asio::ip::tcp::acceptor m_acceptor;
 		
 		TcpConnMgr connMgr;
 		IEventPoller* ptr_poller;

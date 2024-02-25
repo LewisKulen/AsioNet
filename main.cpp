@@ -61,13 +61,10 @@ public:
 		// echo
 		bool succ = netMgr.Send(k, data.c_str(), data.length());
 		if (!succ) {
-			printf("echo[%s:%d]:len[%d],succ[%d]\n", remote.ip.c_str(), remote.port, data.length(), succ);
+			printf("echo[%s:%d]:len[%lld],succ[%d]\n", remote.ip.c_str(), remote.port, data.length(), succ);
 		}
 	}
-	void ErrorHandler(AsioNet::NetKey, const AsioNet::NetErr& err) override
-	{
-		std::cout << err.message().c_str() << std::endl;
-	}
+
 private:
 	AsioNet::TcpNetMgr netMgr;
 };
@@ -142,10 +139,6 @@ public:
 		}
 		// printf("recv from[%s:%d]:%s\n", remote.ip.c_str(), remote.port, data.c_str());
 	}
-	void ErrorHandler(AsioNet::NetKey, const AsioNet::NetErr& err) override
-	{
-		std::cout << err.message().c_str() << std::endl;
-	}
 	std::atomic<bool> hasErr;
 
 private:
@@ -166,10 +159,6 @@ public:
 	{}
 	void PushRecv(AsioNet::NetKey k, const char *data, size_t trans) override
 	{}
-	void PushError(AsioNet::NetKey k, const AsioNet::NetErr& err) override
-	{
-		printf("[%lld] err:[%s]\n",k,err.message().c_str());
-	}
 };
 
 int main()
@@ -191,7 +180,7 @@ int main()
 
 	auto server = std::make_shared<AsioNet::KcpConn>(ctx,&poller);
 	
-
+	
 	th.join();
 	return 0;
 }
