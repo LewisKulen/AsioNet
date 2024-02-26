@@ -8,6 +8,8 @@
 
 namespace AsioNet
 {
+	const size_t AN_KCP_BUFFER_SIZE = 4096;
+
 	struct IKcpConnOwner;	// 前向声明
 	// doc:https://github.com/libinzhangyuan/asio_kcp
 
@@ -56,7 +58,8 @@ namespace AsioNet
 		std::mutex m_kcpLock;
 
 		// BlockSendBuffer<1024,2> m_sendBuffer;
-        // 用于接受kcp协议的buffer，kcp协议经过分片处理，不需要很大，这里看4096比较顺眼就用这个数字了
+        // 用于接受kcp协议的buffer，kcp协议经过分片处理，不需要很大
+		// 这里看4096比较顺眼就用这个数字了
 		char m_kcpBuffer[AN_KCP_BUFFER_SIZE];
 		char m_readBuffer[AN_MSG_MAX_SIZE];
 		NetKey m_key;

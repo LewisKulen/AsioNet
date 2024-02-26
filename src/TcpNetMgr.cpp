@@ -26,8 +26,7 @@ namespace AsioNet
 
 // ************************************************
 
-	TcpNetMgr::TcpNetMgr(size_t th_num, IEventHandler *h):
-		m_poller(h)
+	TcpNetMgr::TcpNetMgr(size_t th_num)
 	{
 		for (size_t i = 0; i < th_num; i++)
 		{
@@ -51,7 +50,7 @@ namespace AsioNet
 		}
 	}
 
-	void TcpNetMgr::Connect(std::string ip, unsigned short port,int retry/*,options*/)
+	void TcpNetMgr::Connect(std::string ip, uint16_t port,int retry/*,options*/)
 	{
 		auto conn = std::make_shared<TcpConn>(ctx, &m_poller);
 		// 连接并没有成功建立，这里不应该调用AddConn
@@ -59,7 +58,7 @@ namespace AsioNet
 		conn->Connect(ip, port, retry);
 	}
 
-	ServerKey TcpNetMgr::Serve(unsigned short port /*,options*/)
+	ServerKey TcpNetMgr::Serve(uint16_t port /*,options*/)
 	{
 		auto s = std::make_shared<TcpServer>(ctx, &m_poller);
 		s->Serve(port);

@@ -29,7 +29,7 @@ namespace AsioNet
 
 		TcpServer(io_ctx& ctx,IEventPoller* p);
 		~TcpServer();
-		void Serve(unsigned short port);
+		void Serve(uint16_t port);
 
 		void Disconnect(NetKey);
 		void Broadcast(const char*,size_t trans);

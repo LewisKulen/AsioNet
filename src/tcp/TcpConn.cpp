@@ -167,7 +167,7 @@ namespace AsioNet
 		return m_key;
 	}
 
-	void TcpConn::Connect(std::string addr, unsigned short port,int retry)
+	void TcpConn::Connect(std::string addr, uint16_t port,int retry)
 	{
 		TcpEndPoint ep(asio::ip::address::from_string(addr.c_str()), port);
 		m_sock.async_connect(ep, [self = shared_from_this(), addr,port, retry](const NetErr& ec) {

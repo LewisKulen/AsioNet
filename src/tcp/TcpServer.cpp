@@ -54,7 +54,7 @@ namespace AsioNet
 		m_acceptor.close(err);
 	}
 
-	void TcpServer::Serve(unsigned short port)
+	void TcpServer::Serve(uint16_t port)
 	{
 		TcpEndPoint ep(asio::ip::tcp::v4(), port);
 		m_acceptor.open(ep.protocol());
@@ -106,7 +106,7 @@ namespace AsioNet
 	{
 		if(!m_key){
 			NetErr err;
-			m_key = static_cast<unsigned short>(m_acceptor.local_endpoint(err).port());
+			m_key = static_cast<uint16_t>(m_acceptor.local_endpoint(err).port());
 		}
 		return m_key;
 	}

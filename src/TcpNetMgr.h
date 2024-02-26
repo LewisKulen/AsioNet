@@ -1,7 +1,6 @@
 #pragma once
 
 #include "AsioNetDef.h"
-#include "event/IEventHandler.h"
 #include "event/DefaultEventDriver.h"
 #include "tcp/TcpServer.h"
 
@@ -47,16 +46,20 @@ namespace AsioNet
         TcpNetMgr(const TcpNetMgr&) = delete;
         TcpNetMgr& operator=(const TcpNetMgr&) = delete;
 
-        TcpNetMgr(size_t th_num/*线程数量*/,IEventHandler*);
+        TcpNetMgr(size_t th_num/*线程数量*/);
         ~TcpNetMgr();
 
+        // ******************** 事件处理相关 ********************
         // 直到把当前的请求全部处理完才结束，占用调用者的线程资源
+        
         void Update();
-        ServerKey Serve(unsigned short port/*,options*/);
+
+        // ******************** 连接相关 ********************
+        ServerKey Serve(uint16_t port/*,options*/);
         void Broadcast(ServerKey, const char* data, size_t trans);
 
         // retry：连接失败后的重试次数
-        void Connect(std::string ip, unsigned short port,int retry = 1/*,options*/);       
+        void Connect(std::string ip, uint16_t port,int retry = 1/*,options*/);       
         void Disconnect(NetKey);
         bool Send(NetKey, const char* data, size_t trans);
 
