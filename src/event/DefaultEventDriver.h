@@ -6,7 +6,7 @@
 #include "../include/AsioNetDef.h"
 
 #include <queue>
-#include <map>
+#include <unordered_map>
 
 #include <google/protobuf/message_lite.h>
 
@@ -57,20 +57,6 @@ namespace AsioNet
 			NetKey key;
 			EventType type;
 		};
-		struct Router {
-			Router(GooglePbLite* a1, IHandler* a2) :
-				pb(a1), h(a2) {}
-
-			~Router()
-			{
-				if (pb)	delete pb;
-				if (h)	delete h;
-			}
-
-			GooglePbLite* pb;
-			IHandler* h;
-		};
-
 	public:
 		DefaultEventDriver();
 		~DefaultEventDriver();
@@ -79,47 +65,41 @@ namespace AsioNet
 		void PushAccept(NetKey k) override;
 		void PushConnect(NetKey k) override;
 		void PushDisconnect(NetKey k) override;
-		void PushRecv(NetKey k, const char *data, size_t trans) override;
+		void PushRecv(NetKey k, const char* data, size_t trans) override;
 
 		// *********************** 实际对外的方法 **************************
 		// 取出一个Event并交给特定的处理器
 		bool PopOne();
 
-		template<typename PB, typename H>
+		/*
+		HANDLER =
+		class DemoHandler{
+			void operator()(NetKey ne,const PB& pb)
+			{
+				...
+			}
+		};
+		*/
+		template<typename HANDLER, typename PB>
 		void AddRouter(uint16_t msgID)
 		{
-			PB* pb = new PB;
-			H* h = new H;
+			// 后续可以加点模板参数检查
+			m_routers[msgID] = std::function(
+				[](NetKey key, uint16_t flag, const char* data, uint16_t len)->void {
+					// 这里请不要越界，因为默认采用的是PopUnsafe
+					// 这里是对所有协议的统一处理的地方，请谨慎修改哦！
+					PB pb;
+					if (!pb.ParseFromArray(data, len))
+					{
+						// err handle
+						return;
+					}
 
-			static_assert(dynamic_cast<GooglePbLite*>(pb) != nullptr);
-			static_assert(dynamic_cast<IHandler*>(h) != nullptr);
-
-			m_routers[msgID] = Router(pb, h);
+					HANDLER{}(key, pb);
+				});
 		}
 
-		template<typename H>
-		void SetAcceptHandler()
-		{
-			H* h = new H;
-			static_assert(dynamic_cast<IAcceptHandler*>(h) != nullptr);
-			ptr_accept = h;
-		}
-
-		template<typename H>
-		void SetConnectHandler()
-		{
-			H* h = new H;
-			static_assert(dynamic_cast<IConnectHandler*>(h) != nullptr);
-			ptr_connect = h;
-		}
-
-		template<typename H>
-		void SetDisconnectHandler()
-		{
-			H* h = new H;
-			static_assert(dynamic_cast<IDisconnectHandler*>(h) != nullptr);
-			ptr_disconnect = h;
-		}
+		
 		// ************************************************************
 
 	protected:
@@ -127,12 +107,13 @@ namespace AsioNet
 		std::mutex m_lock;
 		std::queue<NetEvent> m_events;
 		BlockBuffer<DEFAULT_POLLER_BUFFER_SIZE,
-					DEFAULT_POLLER_BUFFER_EXTEND_NUM> m_recvBuffer;
+			DEFAULT_POLLER_BUFFER_EXTEND_NUM> m_recvBuffer;
 
-		std::map<uint16_t, Router> m_routers;
+		std::unordered_map<uint16_t,
+			std::function<void(NetKey key, uint16_t, const char*, uint16_t)>> m_routers;
 
-		IAcceptHandler* ptr_accept;
-		IConnectHandler* ptr_connect;
-		IDisconnectHandler* ptr_disconnect;
+	
+		std::vector<std::function<void(NetKey,std::string,uint16_t)>> m_handler;
+		std::function <void(NetKey)> m_errHandler;
 	};
 }
