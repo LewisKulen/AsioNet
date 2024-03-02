@@ -1,14 +1,15 @@
 #include <iostream>
 #include <chrono>
 #include <mutex>
+#include <string>
 
 namespace fghtest
 {
-    void log(const char *msg)
+    void log(const std::string& msg)
     {
         static std::mutex lock;
         std::lock_guard<std::mutex> guard(lock);
-        std::cout << std::string(msg).c_str() << std::endl;
+        std::cout << msg.c_str() << std::endl;
     }
 
     // Duration should be : std::chrono::duration<>

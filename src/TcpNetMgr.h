@@ -1,7 +1,7 @@
 #pragma once
 
 #include "AsioNetDef.h"
-#include "event/DefaultEventDriver.h"
+#include "event/IEventPoller.h"
 #include "tcp/TcpServer.h"
 
 #include <map>
@@ -11,7 +11,7 @@ namespace AsioNet
 
     /*
                     事件处理器
-    TcpNetMgr------>DefaultEventDriver---->Handler
+    TcpNetMgr------>EventDriver---->Handler
       |     \          ^
       v      \         |
     TcpServer \    IEventPoller
@@ -25,7 +25,7 @@ namespace AsioNet
       将调用签名为 void RecvHandler(NetKey, const char *data, size_t recv) 的接口函数。
       传递给RecvHandler的参数为内部存储的底层指针和数据大小，不做额外的数据拷贝。
       使用者如果对该指针进行了写操作/越界访问，是很危险的，请注意。
-    3.你可以通过修改DefaultEventDriver::PopOne中对EventType::Recv事件的处理方式来修改上述行为
+    3.你可以通过修改EventDriver::PopOne中对EventType::Recv事件的处理方式来修改上述行为
     // Encoder,Decoder,Router放在业务层私以为更加合理，遂不在网络层做处理
     
     */
@@ -44,15 +44,12 @@ namespace AsioNet
     public:
         TcpNetMgr() = delete;
         TcpNetMgr(const TcpNetMgr&) = delete;
+        TcpNetMgr(TcpNetMgr&&) = delete;
         TcpNetMgr& operator=(const TcpNetMgr&) = delete;
+        TcpNetMgr& operator=(TcpNetMgr&&) = delete;
 
-        TcpNetMgr(size_t th_num/*线程数量*/);
+        TcpNetMgr(size_t th_num/*线程数量*/, IEventPoller* ptr_poller);
         ~TcpNetMgr();
-
-        // ******************** 事件处理相关 ********************
-        // 直到把当前的请求全部处理完才结束，占用调用者的线程资源
-        
-        void Update();
 
         // ******************** 连接相关 ********************
         ServerKey Serve(uint16_t port/*,options*/);
@@ -64,11 +61,11 @@ namespace AsioNet
         bool Send(NetKey, const char* data, size_t trans);
 
     private:
-        io_ctx ctx;
+        io_ctx m_ctx;
         std::vector<std::thread> thPool;
-        DefaultEventDriver m_poller;
-        TcpConnMgr connMgr;
-        TcpServerMgr serverMgr;
+        IEventPoller* m_poller;
+        TcpConnMgr m_connMgr;
+        TcpServerMgr m_serverMgr;
     };
 
 }

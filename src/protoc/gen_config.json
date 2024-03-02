@@ -1,9 +1,15 @@
 {
-    "tasks" :[
+    "root": "C:/Users/MaxFu/Desktop/CNB/AsioNet",
+    "generator": {
+        "path": "vcpkg_installed/x64-windows/x64-windows/tools/protobuf",
+        "name": "protoc.exe"
+    },
+    "tasks": [
         {
-            "gen_type":"cpp",
-            "input":"./proto/*.proto",
-            "output":"./gen/cpp"
+            "input": "src/protoc/proto/",
+            "files":["testProtoc.proto"],
+            "out": "--cpp_out",
+            "output": "src/protoc/gen/cpp/"
         }
     ]
 }

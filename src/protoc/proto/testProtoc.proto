@@ -1,7 +1,8 @@
-syntax = "proto2";
+syntax = "proto3";
+package protobuf;
 option optimize_for = LITE_RUNTIME;
 
-message testPb
+message DemoPb
 {
     optional uint32 a = 1;
 }

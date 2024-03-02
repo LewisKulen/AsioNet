@@ -29,6 +29,8 @@ namespace AsioNet
 
 		TcpServer(io_ctx& ctx,IEventPoller* p);
 		~TcpServer();
+
+		// 默认只有一张网卡
 		void Serve(uint16_t port);
 
 		void Disconnect(NetKey);

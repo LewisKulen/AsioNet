@@ -36,7 +36,7 @@ struct BlockElem {
 };
 
 template<size_t V_BUFFER_SIZE/*每个buffer的大小*/,
-			size_t V_EXTEND_NUM/*每次扩充的大小*/>
+	size_t V_EXTEND_NUM/*每次扩充的大小*/>
 class BlockSendBuffer {
 public:
 	// 每次扩充几个buffer
@@ -150,12 +150,12 @@ struct BlockElem_1 {
 };
 
 template<size_t V_BUFFER_SIZE/*每个buffer的大小*/,
-			size_t V_EXTEND_NUM/*每次扩充的大小*/>
+	size_t V_EXTEND_NUM/*每次扩充的大小*/>
 class BlockBuffer {
 public:
 	// 每次扩充几个buffer
 	BlockBuffer() :
-		m_pool(V_EXTEND_NUM),head(nullptr), tail(nullptr)
+		m_pool(V_EXTEND_NUM), head(nullptr), tail(nullptr)
 	{}
 	~BlockBuffer()
 	{}
@@ -181,12 +181,12 @@ public:
 			}
 		}
 
-		if(tail->WriteAll(data,trans) != trans)
+		if (tail->WriteAll(data, trans) != trans)
 		{
 			tail->Done();
 			tail->next = m_pool.New();
 			tail = tail->next;
-			tail->WriteAll(data,trans);
+			tail->WriteAll(data, trans);
 		}
 		que.push(trans);
 		return true;
@@ -200,7 +200,7 @@ public:
 			return 0;
 		}
 
-		if(head->IsDone() && head->Empty())
+		if (head->IsDone() && head->Empty())
 		{
 			auto p = head;
 			m_pool.Del(p);
@@ -222,7 +222,7 @@ public:
 		{
 			return "";
 		}
-		if(head->IsDone() && head->Empty())
+		if (head->IsDone() && head->Empty())
 		{
 			auto p = head;
 			m_pool.Del(p);
@@ -232,20 +232,23 @@ public:
 		size_t len = que.front();
 		char* buf = head->Read(len);
 		que.pop();
-		return std::string(buf,len);
+		return std::string(buf, len);
 	}
-
+private:
+	struct Bytes {
+		char* data;
+		size_t len;
+	};
+public:
 	// 不拷贝数据，直接吧内部指针暴露出去
-	// 只有Pop的时候才会吧上一次空了的block内存Del掉
-	// 所以只要用户及时在外部拷贝走了数据，那么就是安全的
-	size_t PopUnsafe(char** in)
+	Bytes PopUnsafe()
 	{
 		if (!head || que.empty())
 		{
-			return 0;
+			return { nullptr,0 };
 		}
 
-		if(head->IsDone() && head->Empty())
+		if (head->IsDone() && head->Empty())
 		{
 			auto p = head;
 			m_pool.Del(p);
@@ -253,10 +256,10 @@ public:
 		}
 
 		size_t len = que.front();
-		*in = head->Read(len);
+		char* data = head->Read(len);
 
 		que.pop();
-		return len;
+		return { data,len };
 	}
 private:
 	BlockElem_1<V_BUFFER_SIZE>* head, * tail;

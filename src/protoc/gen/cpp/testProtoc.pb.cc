@@ -17,40 +17,43 @@ PROTOBUF_PRAGMA_INIT_SEG
 namespace _pb = ::PROTOBUF_NAMESPACE_ID;
 namespace _pbi = _pb::internal;
 
-PROTOBUF_CONSTEXPR testPb::testPb(
+namespace protobuf {
+PROTOBUF_CONSTEXPR DemoPb::DemoPb(
     ::_pbi::ConstantInitialized): _impl_{
     /*decltype(_impl_._has_bits_)*/{}
   , /*decltype(_impl_._cached_size_)*/{}
   , /*decltype(_impl_.a_)*/0u} {}
-struct testPbDefaultTypeInternal {
-  PROTOBUF_CONSTEXPR testPbDefaultTypeInternal()
+struct DemoPbDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR DemoPbDefaultTypeInternal()
       : _instance(::_pbi::ConstantInitialized{}) {}
-  ~testPbDefaultTypeInternal() {}
+  ~DemoPbDefaultTypeInternal() {}
   union {
-    testPb _instance;
+    DemoPb _instance;
   };
 };
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 testPbDefaultTypeInternal _testPb_default_instance_;
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 DemoPbDefaultTypeInternal _DemoPb_default_instance_;
+}  // namespace protobuf
+namespace protobuf {
 
 // ===================================================================
 
-class testPb::_Internal {
+class DemoPb::_Internal {
  public:
-  using HasBits = decltype(std::declval<testPb>()._impl_._has_bits_);
+  using HasBits = decltype(std::declval<DemoPb>()._impl_._has_bits_);
   static void set_has_a(HasBits* has_bits) {
     (*has_bits)[0] |= 1u;
   }
 };
 
-testPb::testPb(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+DemoPb::DemoPb(::PROTOBUF_NAMESPACE_ID::Arena* arena,
                          bool is_message_owned)
   : ::PROTOBUF_NAMESPACE_ID::MessageLite(arena, is_message_owned) {
   SharedCtor(arena, is_message_owned);
-  // @@protoc_insertion_point(arena_constructor:testPb)
+  // @@protoc_insertion_point(arena_constructor:protobuf.DemoPb)
 }
-testPb::testPb(const testPb& from)
+DemoPb::DemoPb(const DemoPb& from)
   : ::PROTOBUF_NAMESPACE_ID::MessageLite() {
-  testPb* const _this = this; (void)_this;
+  DemoPb* const _this = this; (void)_this;
   new (&_impl_) Impl_{
       decltype(_impl_._has_bits_){from._impl_._has_bits_}
     , /*decltype(_impl_._cached_size_)*/{}
@@ -58,10 +61,10 @@ testPb::testPb(const testPb& from)
 
   _internal_metadata_.MergeFrom<std::string>(from._internal_metadata_);
   _this->_impl_.a_ = from._impl_.a_;
-  // @@protoc_insertion_point(copy_constructor:testPb)
+  // @@protoc_insertion_point(copy_constructor:protobuf.DemoPb)
 }
 
-inline void testPb::SharedCtor(
+inline void DemoPb::SharedCtor(
     ::_pb::Arena* arena, bool is_message_owned) {
   (void)arena;
   (void)is_message_owned;
@@ -72,8 +75,8 @@ inline void testPb::SharedCtor(
   };
 }
 
-testPb::~testPb() {
-  // @@protoc_insertion_point(destructor:testPb)
+DemoPb::~DemoPb() {
+  // @@protoc_insertion_point(destructor:protobuf.DemoPb)
   if (auto *arena = _internal_metadata_.DeleteReturnArena<std::string>()) {
   (void)arena;
     return;
@@ -81,16 +84,16 @@ testPb::~testPb() {
   SharedDtor();
 }
 
-inline void testPb::SharedDtor() {
+inline void DemoPb::SharedDtor() {
   GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
 }
 
-void testPb::SetCachedSize(int size) const {
+void DemoPb::SetCachedSize(int size) const {
   _impl_._cached_size_.Set(size);
 }
 
-void testPb::Clear() {
-// @@protoc_insertion_point(message_clear_start:testPb)
+void DemoPb::Clear() {
+// @@protoc_insertion_point(message_clear_start:protobuf.DemoPb)
   uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
@@ -100,7 +103,7 @@ void testPb::Clear() {
   _internal_metadata_.Clear<std::string>();
 }
 
-const char* testPb::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+const char* DemoPb::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
   _Internal::HasBits has_bits{};
   while (!ctx->Done(&ptr)) {
@@ -140,15 +143,14 @@ failure:
 #undef CHK_
 }
 
-uint8_t* testPb::_InternalSerialize(
+uint8_t* DemoPb::_InternalSerialize(
     uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
-  // @@protoc_insertion_point(serialize_to_array_start:testPb)
+  // @@protoc_insertion_point(serialize_to_array_start:protobuf.DemoPb)
   uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  cached_has_bits = _impl_._has_bits_[0];
   // optional uint32 a = 1;
-  if (cached_has_bits & 0x00000001u) {
+  if (_internal_has_a()) {
     target = stream->EnsureSpace(target);
     target = ::_pbi::WireFormatLite::WriteUInt32ToArray(1, this->_internal_a(), target);
   }
@@ -157,12 +159,12 @@ uint8_t* testPb::_InternalSerialize(
     target = stream->WriteRaw(_internal_metadata_.unknown_fields<std::string>(::PROTOBUF_NAMESPACE_ID::internal::GetEmptyString).data(),
         static_cast<int>(_internal_metadata_.unknown_fields<std::string>(::PROTOBUF_NAMESPACE_ID::internal::GetEmptyString).size()), target);
   }
-  // @@protoc_insertion_point(serialize_to_array_end:testPb)
+  // @@protoc_insertion_point(serialize_to_array_end:protobuf.DemoPb)
   return target;
 }
 
-size_t testPb::ByteSizeLong() const {
-// @@protoc_insertion_point(message_byte_size_start:testPb)
+size_t DemoPb::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:protobuf.DemoPb)
   size_t total_size = 0;
 
   uint32_t cached_has_bits = 0;
@@ -183,15 +185,15 @@ size_t testPb::ByteSizeLong() const {
   return total_size;
 }
 
-void testPb::CheckTypeAndMergeFrom(
+void DemoPb::CheckTypeAndMergeFrom(
     const ::PROTOBUF_NAMESPACE_ID::MessageLite& from) {
-  MergeFrom(*::_pbi::DownCast<const testPb*>(
+  MergeFrom(*::_pbi::DownCast<const DemoPb*>(
       &from));
 }
 
-void testPb::MergeFrom(const testPb& from) {
-  testPb* const _this = this;
-  // @@protoc_insertion_point(class_specific_merge_from_start:testPb)
+void DemoPb::MergeFrom(const DemoPb& from) {
+  DemoPb* const _this = this;
+  // @@protoc_insertion_point(class_specific_merge_from_start:protobuf.DemoPb)
   GOOGLE_DCHECK_NE(&from, _this);
   uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
@@ -202,34 +204,35 @@ void testPb::MergeFrom(const testPb& from) {
   _this->_internal_metadata_.MergeFrom<std::string>(from._internal_metadata_);
 }
 
-void testPb::CopyFrom(const testPb& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:testPb)
+void DemoPb::CopyFrom(const DemoPb& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:protobuf.DemoPb)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
-bool testPb::IsInitialized() const {
+bool DemoPb::IsInitialized() const {
   return true;
 }
 
-void testPb::InternalSwap(testPb* other) {
+void DemoPb::InternalSwap(DemoPb* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
   swap(_impl_.a_, other->_impl_.a_);
 }
 
-std::string testPb::GetTypeName() const {
-  return "testPb";
+std::string DemoPb::GetTypeName() const {
+  return "protobuf.DemoPb";
 }
 
 
 // @@protoc_insertion_point(namespace_scope)
+}  // namespace protobuf
 PROTOBUF_NAMESPACE_OPEN
-template<> PROTOBUF_NOINLINE ::testPb*
-Arena::CreateMaybeMessage< ::testPb >(Arena* arena) {
-  return Arena::CreateMessageInternal< ::testPb >(arena);
+template<> PROTOBUF_NOINLINE ::protobuf::DemoPb*
+Arena::CreateMaybeMessage< ::protobuf::DemoPb >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::protobuf::DemoPb >(arena);
 }
 PROTOBUF_NAMESPACE_CLOSE
 

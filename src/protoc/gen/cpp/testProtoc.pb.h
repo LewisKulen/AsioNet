@@ -41,33 +41,36 @@ PROTOBUF_NAMESPACE_CLOSE
 struct TableStruct_testProtoc_2eproto {
   static const uint32_t offsets[];
 };
-class testPb;
-struct testPbDefaultTypeInternal;
-extern testPbDefaultTypeInternal _testPb_default_instance_;
+namespace protobuf {
+class DemoPb;
+struct DemoPbDefaultTypeInternal;
+extern DemoPbDefaultTypeInternal _DemoPb_default_instance_;
+}  // namespace protobuf
 PROTOBUF_NAMESPACE_OPEN
-template<> ::testPb* Arena::CreateMaybeMessage<::testPb>(Arena*);
+template<> ::protobuf::DemoPb* Arena::CreateMaybeMessage<::protobuf::DemoPb>(Arena*);
 PROTOBUF_NAMESPACE_CLOSE
+namespace protobuf {
 
 // ===================================================================
 
-class testPb final :
-    public ::PROTOBUF_NAMESPACE_ID::MessageLite /* @@protoc_insertion_point(class_definition:testPb) */ {
+class DemoPb final :
+    public ::PROTOBUF_NAMESPACE_ID::MessageLite /* @@protoc_insertion_point(class_definition:protobuf.DemoPb) */ {
  public:
-  inline testPb() : testPb(nullptr) {}
-  ~testPb() override;
-  explicit PROTOBUF_CONSTEXPR testPb(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+  inline DemoPb() : DemoPb(nullptr) {}
+  ~DemoPb() override;
+  explicit PROTOBUF_CONSTEXPR DemoPb(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
 
-  testPb(const testPb& from);
-  testPb(testPb&& from) noexcept
-    : testPb() {
+  DemoPb(const DemoPb& from);
+  DemoPb(DemoPb&& from) noexcept
+    : DemoPb() {
     *this = ::std::move(from);
   }
 
-  inline testPb& operator=(const testPb& from) {
+  inline DemoPb& operator=(const DemoPb& from) {
     CopyFrom(from);
     return *this;
   }
-  inline testPb& operator=(testPb&& from) noexcept {
+  inline DemoPb& operator=(DemoPb&& from) noexcept {
     if (this == &from) return *this;
     if (GetOwningArena() == from.GetOwningArena()
   #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
@@ -81,27 +84,20 @@ class testPb final :
     return *this;
   }
 
-  inline const std::string& unknown_fields() const {
-    return _internal_metadata_.unknown_fields<std::string>(::PROTOBUF_NAMESPACE_ID::internal::GetEmptyString);
-  }
-  inline std::string* mutable_unknown_fields() {
-    return _internal_metadata_.mutable_unknown_fields<std::string>();
-  }
-
-  static const testPb& default_instance() {
+  static const DemoPb& default_instance() {
     return *internal_default_instance();
   }
-  static inline const testPb* internal_default_instance() {
-    return reinterpret_cast<const testPb*>(
-               &_testPb_default_instance_);
+  static inline const DemoPb* internal_default_instance() {
+    return reinterpret_cast<const DemoPb*>(
+               &_DemoPb_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
     0;
 
-  friend void swap(testPb& a, testPb& b) {
+  friend void swap(DemoPb& a, DemoPb& b) {
     a.Swap(&b);
   }
-  inline void Swap(testPb* other) {
+  inline void Swap(DemoPb* other) {
     if (other == this) return;
   #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
     if (GetOwningArena() != nullptr &&
@@ -114,7 +110,7 @@ class testPb final :
       ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
     }
   }
-  void UnsafeArenaSwap(testPb* other) {
+  void UnsafeArenaSwap(DemoPb* other) {
     if (other == this) return;
     GOOGLE_DCHECK(GetOwningArena() == other->GetOwningArena());
     InternalSwap(other);
@@ -122,12 +118,12 @@ class testPb final :
 
   // implements Message ----------------------------------------------
 
-  testPb* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
-    return CreateMaybeMessage<testPb>(arena);
+  DemoPb* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<DemoPb>(arena);
   }
   void CheckTypeAndMergeFrom(const ::PROTOBUF_NAMESPACE_ID::MessageLite& from)  final;
-  void CopyFrom(const testPb& from);
-  void MergeFrom(const testPb& from);
+  void CopyFrom(const DemoPb& from);
+  void MergeFrom(const DemoPb& from);
   PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
   bool IsInitialized() const final;
 
@@ -141,15 +137,15 @@ class testPb final :
   void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena, bool is_message_owned);
   void SharedDtor();
   void SetCachedSize(int size) const;
-  void InternalSwap(testPb* other);
+  void InternalSwap(DemoPb* other);
 
   private:
   friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
   static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
-    return "testPb";
+    return "protobuf.DemoPb";
   }
   protected:
-  explicit testPb(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+  explicit DemoPb(::PROTOBUF_NAMESPACE_ID::Arena* arena,
                        bool is_message_owned = false);
   public:
 
@@ -175,7 +171,7 @@ class testPb final :
   void _internal_set_a(uint32_t value);
   public:
 
-  // @@protoc_insertion_point(class_scope:testPb)
+  // @@protoc_insertion_point(class_scope:protobuf.DemoPb)
  private:
   class _Internal;
 
@@ -199,34 +195,34 @@ class testPb final :
   #pragma GCC diagnostic push
   #pragma GCC diagnostic ignored "-Wstrict-aliasing"
 #endif  // __GNUC__
-// testPb
+// DemoPb
 
 // optional uint32 a = 1;
-inline bool testPb::_internal_has_a() const {
+inline bool DemoPb::_internal_has_a() const {
   bool value = (_impl_._has_bits_[0] & 0x00000001u) != 0;
   return value;
 }
-inline bool testPb::has_a() const {
+inline bool DemoPb::has_a() const {
   return _internal_has_a();
 }
-inline void testPb::clear_a() {
+inline void DemoPb::clear_a() {
   _impl_.a_ = 0u;
   _impl_._has_bits_[0] &= ~0x00000001u;
 }
-inline uint32_t testPb::_internal_a() const {
+inline uint32_t DemoPb::_internal_a() const {
   return _impl_.a_;
 }
-inline uint32_t testPb::a() const {
-  // @@protoc_insertion_point(field_get:testPb.a)
+inline uint32_t DemoPb::a() const {
+  // @@protoc_insertion_point(field_get:protobuf.DemoPb.a)
   return _internal_a();
 }
-inline void testPb::_internal_set_a(uint32_t value) {
+inline void DemoPb::_internal_set_a(uint32_t value) {
   _impl_._has_bits_[0] |= 0x00000001u;
   _impl_.a_ = value;
 }
-inline void testPb::set_a(uint32_t value) {
+inline void DemoPb::set_a(uint32_t value) {
   _internal_set_a(value);
-  // @@protoc_insertion_point(field_set:testPb.a)
+  // @@protoc_insertion_point(field_set:protobuf.DemoPb.a)
 }
 
 #ifdef __GNUC__
@@ -235,6 +231,7 @@ inline void testPb::set_a(uint32_t value) {
 
 // @@protoc_insertion_point(namespace_scope)
 
+}  // namespace protobuf
 
 // @@protoc_insertion_point(global_scope)
 
