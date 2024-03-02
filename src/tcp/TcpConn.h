@@ -6,6 +6,9 @@
 
 namespace AsioNet
 {
+	using TcpSock = asio::ip::tcp::socket;
+	using TcpEndPoint = asio::ip::tcp::endpoint;
+
 	struct ITcpConnOwner;	// Ç°ÏòÉùÃ÷
 
 	// doc:https://www.boost.org/doc/libs/1_84_0/doc/html/boost_asio/reference/ip__tcp/socket.html

@@ -7,10 +7,10 @@
 int main()
 {
 
-	//TestClient c;
+	TestClient c;
 
-	TestServer s;
-	s.Update();
+	//TestServer s;
+	//s.Update();
 
 
 	// AsioNet::io_ctx ctx;

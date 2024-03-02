@@ -8,6 +8,9 @@
 
 namespace AsioNet
 {
+	using UdpEndPoint = asio::ip::udp::endpoint;
+	using UdpSock = asio::ip::udp::socket;
+
 	const size_t AN_KCP_BUFFER_SIZE = 4096;
 
 	struct IKcpConnOwner;	// 前向声明

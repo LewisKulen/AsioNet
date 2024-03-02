@@ -4,6 +4,7 @@
 #include "../TcpNetMgr.h"
 
 #include "../protoc/cpp_all_pb.h"
+#include <type_traits>
 
 struct Header {
 	uint16_t msgid;
@@ -26,12 +27,17 @@ public:
 		memset(m_buffer, 0, sizeof(m_buffer));
 	}
 
-	bool SendMsg(uint16_t msgID, uint16_t flag, const char* data,uint16_t trans)
+	template<typename PB>
+	bool SendMsg(uint16_t msgID, uint16_t flag, const PB& pb)
 	{
+		static_assert(std::is_base_of_v<AsioNet::GooglePbLite, PB>, "not a protobuf");
+
+		std::string data = pb.SerializeAsString();
+
 		Header h{msgID,flag};
 		memcpy_s(m_buffer, sizeof(m_buffer), &h, sizeof(h));
-		memcpy_s(m_buffer+sizeof(h), sizeof(m_buffer) - sizeof(h), data, trans);
-		size_t len = trans + sizeof(h);
+		memcpy_s(m_buffer+sizeof(h), sizeof(m_buffer) - sizeof(h), data.c_str(), data.length());
+		size_t len = data.length() + sizeof(h);
 		return netMgr.Send(m_conn, m_buffer, len);
 	}
 
@@ -56,13 +62,11 @@ public:
 		}
 
 		for(int i = 0;;++i) {
-			size_t len = 0;
+
 			protobuf::DemoPb pb;
 			pb.set_a(i);
 
-			std::string str;
-			pb.SerializeToString(&str);
-			SendMsg(1,6,str.c_str(), str.length());
+			SendMsg(1,6, pb);
 
 			std::this_thread::sleep_for(std::chrono::seconds(5));
 		}

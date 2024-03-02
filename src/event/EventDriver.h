@@ -62,7 +62,6 @@ namespace AsioNet
 		size_t datalen;
 	};
 
-
 	template<class HANDLER, class ...Args>
 	constexpr bool check_functor_v =
 		std::is_object_v<HANDLER> && std::is_invocable_v<HANDLER, Args...>;
@@ -71,12 +70,11 @@ namespace AsioNet
 	constexpr bool check_function_v =
 		std::is_function_v<HANDLER> && std::is_invocable_v<HANDLER, Args...>;
 
+	using GooglePbLite = google::protobuf::MessageLite;
+
 	// EventDriver和业务逻辑应该是强关联的
 	class EventDriver : public IEventPoller
 	{
-		using GooglePbLite = google::protobuf::MessageLite;
-
-
 	public:
 		EventDriver();
 		~EventDriver();

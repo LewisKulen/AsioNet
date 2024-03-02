@@ -29,11 +29,9 @@ void TestServer::ErrorHandler::operator()
 	// rkSvr.m_netMgr.Disconnect(key);
 }
 
-
 void TestServer::TestRouter::operator()
 (void* svr, AsioNet::NetKey, const protobuf::DemoPb& pb)
 {
 	static int cnt = 0;
 	fghtest::log(std::to_string(++cnt) + ":" + std::to_string(pb.a()));
-
 }
