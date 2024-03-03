@@ -10,14 +10,15 @@ namespace AsioNet
 {
 	using UdpEndPoint = asio::ip::udp::endpoint;
 	using UdpSock = asio::ip::udp::socket;
+	
+	using KcpKey = uint64_t;
 
 	const size_t AN_KCP_BUFFER_SIZE = 4096;
 
 	struct IKcpConnOwner;	// 前向声明
 	// doc:https://github.com/libinzhangyuan/asio_kcp
 
-	// ikcp_allocator:考虑接管内存管理，默认的方式太粗暴
-
+	// ikcp_allocator:可以考虑接管内存管理
 	class KcpConn : public std::enable_shared_from_this<KcpConn>
 	{
 	public:
@@ -27,7 +28,7 @@ namespace AsioNet
 		KcpConn& operator=(const KcpConn&) = delete;
 		KcpConn& operator=(KcpConn&&) = delete;
 
-		KcpConn(io_ctx& ctx, IEventPoller* p);
+		KcpConn(uint32_t id,io_ctx& ctx, IEventPoller* p);
 
 		~KcpConn();
 
@@ -54,7 +55,7 @@ namespace AsioNet
 		void err_handler();
 
 	private:
-        // bind 会报错
+    
         // 依然需要先connect才能发送成功
 		UdpSock m_sock;
         ikcpcb *m_kcp = nullptr;

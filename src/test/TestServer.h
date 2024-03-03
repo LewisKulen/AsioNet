@@ -17,7 +17,7 @@ public:
 	void Update()
 	{
 		while (true) {
-			while (m_ed.PopEvent());
+			while (m_ed.RunOne());
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		}
 	}

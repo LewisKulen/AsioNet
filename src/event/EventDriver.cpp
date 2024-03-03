@@ -49,7 +49,8 @@ namespace AsioNet
 		m_recvBuffer.Push(data, trans);
 	}
 
-	bool EventDriver::PopEvent()
+	// 注意：这是单线程处理消息
+	bool EventDriver::RunOne()
 	{
 		_lock_guard_(m_lock);
 		if (m_events.empty()) {
@@ -60,7 +61,7 @@ namespace AsioNet
 		switch (e.type) {
 		case EventType::Recv:
 		{
-			// 默认以效率最高的方式，减少拷贝
+			// 所以可以以效率最高的方式获取数据，减少拷贝
 			auto [data, len] = m_recvBuffer.PopUnsafe();
 
 			Package pkg;
