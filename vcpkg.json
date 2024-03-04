@@ -1,33 +1,22 @@
 {
     "name": "asio-net",
     "version": "0.0.1",
+    "builtin-baseline":"000d1bda1ffa95a73e0b40334fa4103d6f4d3d48",    
     "dependencies": [
         {
             "name": "asio",
-            "platform": "x64"
+            "platform":"x64",
+            "version>=": "1.28.2"
         },
         {
             "name": "protobuf",
-            "platform": "x64"
+            "platform":"x64",
+            "version>=": "3.21.12"
         },
         {
             "name": "kcp",
-            "platform": "x64"
+            "platform":"x64",
+            "version>=": "1.7"
         }
-    ],
-    "overrides":[
-        {
-            "name": "asio",
-            "version":"1.28.2"
-        },
-        {
-            "name": "protobuf",
-            "version":"3.21.12"
-        },
-        {
-            "name": "kcp",
-            "version":"1.7"
-        }
-    ],
-    "builtin-baseline":"000d1bda1ffa95a73e0b40334fa4103d6f4d3d48"
+    ]
 }
