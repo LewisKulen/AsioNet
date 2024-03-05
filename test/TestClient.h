@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../event/EventDriver.h"
-#include "../TcpNetMgr.h"
+#include "../src/event/EventDriver.h"
+#include "../src/TcpNetMgr.h"
 
 #include "../protoc/cpp_all_pb.h"
 #include <type_traits>
@@ -51,7 +51,7 @@ public:
 
 	void InitRouter()
 	{
-		// ÔÝ²»Ö§³Ölambda
+		// ï¿½Ý²ï¿½Ö§ï¿½ï¿½lambda
 		m_ed.RegisterConnectHandler<connhandler>(this);
 	}
 

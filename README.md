@@ -47,3 +47,13 @@ Kcp
 
 ```
 
+-   环境搭建
+
+```c++
+1.vs2022+vcpkg
+    vs2022里自带vcpkg，使用vcpkg的manifest模式，vcpkg integrate install 集成到项目，然后编译运行即可
+2.vscode+vcpkg+cmake
+    1.下载vscode扩展：C/C++,CMake,CMake Tool
+    2.由于我的编译器是mingw，你只需要修改.vscode中的部分就可以
+```
+

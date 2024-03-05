@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../event/EventDriver.h"
-#include "../TcpNetMgr.h"
+#include "../src/event/EventDriver.h"
+#include "../src/TcpNetMgr.h"
 
 #include "../protoc/cpp_all_pb.h"
 

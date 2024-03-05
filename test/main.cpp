@@ -1,8 +1,8 @@
 
-#include "./src/kcp/KcpConn.h"
+#include "../src/kcp/KcpConn.h"
 
-#include "./src/test/TestServer.h"
-#include "./src/test/TestClient.h"
+#include "./TestServer.h"
+#include "./TestClient.h"
 
 int main()
 {
