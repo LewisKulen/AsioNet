@@ -6,10 +6,10 @@
     },
     "tasks": [
         {
-            "input": "src/protoc/proto/",
+            "input": "protoc/proto/",
             "files":["testProtoc.proto"],
             "out": "--cpp_out",
-            "output": "src/protoc/gen/cpp/"
+            "output": "protoc/gen/cpp/"
         }
     ]
 }

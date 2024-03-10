@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../include/AsioNetDef.h"
-#include "../include/BlockBuffer.h"
+#include "../utils/AsioNetDef.h"
+#include "../utils/BlockBuffer.h"
 #include "../event/IEventPoller.h"
 
 namespace AsioNet

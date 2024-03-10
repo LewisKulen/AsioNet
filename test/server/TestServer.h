@@ -1,9 +1,10 @@
 #pragma once
 
-#include "../src/event/EventDriver.h"
-#include "../src/TcpNetMgr.h"
+#include "../../src/AsioNet.h"
 
 #include "../protoc/cpp_all_pb.h"
+
+#include <iostream>
 
 class TestServer {
 #include "TestServerRouter.h"

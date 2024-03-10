@@ -2,8 +2,8 @@
 
 #include "IEventPoller.h"
 
-#include "../include/BlockBuffer.h"
-#include "../include/AsioNetDef.h"
+#include "../utils/BlockBuffer.h"
+#include "../utils/AsioNetDef.h"
 
 #include <google/protobuf/message_lite.h>
 

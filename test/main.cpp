@@ -1,31 +1,10 @@
-
-#include "../src/kcp/KcpConn.h"
-
-#include "./TestServer.h"
-#include "./TestClient.h"
+#include "./server/TestServer.h"
+#include "./client/TestClient.h"
 
 int main()
 {
 
 	TestClient c;
 
-	//TestServer s;
-	//s.Update();
-
-
-	// AsioNet::io_ctx ctx;
-	// std::thread th([&ctx]{
-	// 	while(true){
-	// 		ctx.run();
-	// 	}
-	// });
-	// KcpPoller poller;
-	// auto client = std::make_shared<AsioNet::KcpConn>(ctx,&poller);
-	// client->Write("12345",5);
-
-	// auto server = std::make_shared<AsioNet::KcpConn>(ctx,&poller);
-	
-	
-	// th.join();
 	return 0;
 }

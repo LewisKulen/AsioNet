@@ -9,8 +9,6 @@ namespace AsioNet {
 	using io_ctx = asio::io_context;
 	using NetErr = std::error_code;
 	
-#define _lock_guard_(l) std::lock_guard<std::mutex>guard(l);
-
 	struct AN_Msg {
 		uint16_t len;
 		// char data[0];
@@ -23,4 +21,7 @@ namespace AsioNet {
 	
 	const NetKey INVALID_NET_KEY = 0;
 	const ServerKey INVALID_SERVER_KEY = 0;
+
+#define _lock_guard_(l) std::lock_guard<std::mutex>guard(l);
+
 }

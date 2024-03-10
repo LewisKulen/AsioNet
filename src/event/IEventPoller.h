@@ -1,5 +1,5 @@
 #pragma once
-#include "../include/AsioNetDef.h"
+#include "../utils/AsioNetDef.h"
 
 namespace AsioNet
 {

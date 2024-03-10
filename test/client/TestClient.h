@@ -1,9 +1,9 @@
 #pragma once
 
-#include "../src/event/EventDriver.h"
-#include "../src/TcpNetMgr.h"
+#include "../../src/AsioNet.h"
 
 #include "../protoc/cpp_all_pb.h"
+
 #include <type_traits>
 
 struct Header {
@@ -23,8 +23,8 @@ public:
 			}
 			}).detach();
 
-		netMgr.Connect("127.0.0.1", 8888, 100);
 		memset(m_buffer, 0, sizeof(m_buffer));
+		netMgr.Connect("127.0.0.1", 8888, 100);
 	}
 
 	template<typename PB>
@@ -48,11 +48,19 @@ public:
 			pkClient->DoTest();
 		};
 	};
-
+	struct disconnhandler {
+		void operator()(void* cl, AsioNet::NetKey key, std::string, uint16_t) {
+			TestClient* pkClient = (TestClient*)cl;
+			memset(pkClient->m_buffer, 0, sizeof(pkClient->m_buffer));
+			pkClient->netMgr.Connect("127.0.0.1", 8888, 100);
+		};
+	};
 	void InitRouter()
 	{
-		// �ݲ�֧��lambda
 		m_ed.RegisterConnectHandler<connhandler>(this);
+		m_ed.RegisterDisconnectHandler<disconnhandler>(this);
+		// RegConnHandler
+		// RegDisconHandler
 	}
 
 	void DoTest()

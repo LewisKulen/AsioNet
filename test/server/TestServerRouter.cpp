@@ -1,5 +1,5 @@
 #include "TestServer.h"
-#include "./test.h"
+#include "../test.h"
 
 #define REFER_TO_TEST_SVR(svr) auto& rkSvr = *(static_cast<TestServer*>(svr));
 

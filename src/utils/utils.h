@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../include/AsioNetDef.h"
+#include "./AsioNetDef.h"
 
 namespace AsioNet {
 	struct NetAddr {
