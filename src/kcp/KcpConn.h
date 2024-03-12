@@ -38,28 +38,35 @@ namespace AsioNet
 
 		void Close();
 
+		void Start();
+
 		NetKey Key();
 		
-		// 只能在connect/accept成功了之后使用
-		void StartRead(); 
-
 	protected:
 	    static int kcpOutPutFunc(const char *buf, int len,ikcpcb *kcp, void *user);
 
 		void init();
 
-		void kcpUpdateFunc();
+		void kcpUpdate();
 
-		// void write_handler(const NetErr&, size_t);
+		void startRead();
 
 		void err_handler();
 
 	private:
-    
-        // 依然需要先connect才能发送成功
-		UdpSock m_sock;
+        // kcp-go中的svr，多个kcp依赖在一个udpsock上
+		// 客户端只会知道服务器的一个addr，如果使用多个udpsock显然是不合理的
+		// 并且既然使用kcp了，那么链接显然不不会有太多个
+		std::shared_ptr<UdpSock> m_sock;
+
         ikcpcb *m_kcp = nullptr;
+		asio::high_resolution_timer m_updater;
 		std::mutex m_kcpLock;
+
+		UdpEndPoint m_sender;	// 发送用
+		
+		// used only in svr mode
+		UdpEndPoint m_tempRecevier;	// 接收用
 
 		// BlockSendBuffer<1024,2> m_sendBuffer;
         // 用于接受kcp协议的buffer，kcp协议经过分片处理，不需要很大

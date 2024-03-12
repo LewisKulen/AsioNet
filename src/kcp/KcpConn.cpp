@@ -4,11 +4,10 @@
 namespace AsioNet
 {
 	KcpConn::KcpConn(uint32_t id,io_ctx& ctx,IEventPoller* p) :
-		m_sock(ctx),ptr_poller(p)
+		m_updater(ctx), ptr_poller(p)
 	{
         m_kcp = ikcp_create(id,this/*user*/);
 		m_kcp->output = &KcpConn::kcpOutPutFunc;	// ikcp_setoutput(m_kcp,&kcpOutPutFunc);
-
 		ikcp_nodelay(m_kcp, 1, 2, 1, 0);
 
 		init();
@@ -42,6 +41,12 @@ namespace AsioNet
         return ikcp_send(m_kcp, data, trans) > 0;
 	}
 
+	void KcpConn::Start()
+	{
+		kcpUpdate();
+		startRead();
+	}
+
 	// ikcp_update的时候才会调用
 	int KcpConn::kcpOutPutFunc(const char* buf, int len, ikcpcb* kcp, void* user)
 	{
@@ -49,18 +54,17 @@ namespace AsioNet
 		auto ptr = static_cast<KcpConn*>(user);
 		// 这里不采用async_send的方式发送，因为kcp本身就已经是async的
 		// 而且udp的发送本来就很快，再改成async_send不仅增加逻辑复杂性，性能可能更低
-		return ptr->m_sock.send(asio::buffer(buf, len), 0, ec);
+		return ptr->m_sock->send_to(asio::buffer(buf, len), ptr->m_sender);
 	}
-
 
 	// 问题：
 	// 读，写操作都需要对整个kcp加锁
 	// 而kcp性能依赖于ikcp_update的实际效率
-	void KcpConn::StartRead()
+	void KcpConn::startRead()
 	{
 		// udp包有界性，一次一定接受一个包，如果m_kcpBuffer不够，则只接受前面那段
 		// 问题：如果对端一直发包，会不会拖垮整个update的性能
-		m_sock.async_receive(asio::buffer(m_kcpBuffer, sizeof(m_kcpBuffer)),
+		m_sock->async_receive_from(asio::buffer(m_kcpBuffer, sizeof(m_kcpBuffer)), m_tempRecevier,
         [self = shared_from_this()](const NetErr& ec, size_t trans){
             if (ec)
             {
@@ -97,8 +101,35 @@ namespace AsioNet
 				return;
 			}
 
-            self->StartRead();
+            self->startRead();
         });
+	}
+
+	// kcp-go用小根堆来管理多个kcp的update
+	// 这里先用asio自带的，性能不够再做优化
+	void KcpConn::kcpUpdate()
+	{
+		m_updater.async_wait([self = shared_from_this()](const NetErr& ec) {
+			if (!ec)
+			{
+				self->err_handler();
+				return;
+			}
+
+			auto ticks = std::chrono::duration_cast<std::chrono::milliseconds>
+				(std::chrono::system_clock::now().time_since_epoch()).count();
+			{
+				_lock_guard_(self->m_kcpLock);
+				if (!self->m_kcp) {
+					return;
+				}
+				ikcp_update(self->m_kcp, ticks);
+			}
+
+			self->m_updater.expires_after(std::chrono::milliseconds(10));
+
+			self->kcpUpdate();
+			});
 	}
 
 	// 网络库的错误处理：关闭连接
@@ -128,41 +159,19 @@ namespace AsioNet
 		ptr_poller->PushDisconnect(Key());// 通知上层链接关闭了
 
 		NetErr err;
-		m_sock.shutdown(asio::ip::tcp::socket::shutdown_both, err);
-		m_sock.close(err);	// 通知io_ctx，取消所有m_sock的异步操作
+		m_sock->shutdown(asio::ip::tcp::socket::shutdown_both, err);
+		m_sock->close(err);	// 通知io_ctx，取消所有m_sock的异步操作
 		m_key = 0;
 	}
 
 	KcpKey KcpConn::Key()
 	{
-		if(m_key == 0){
-			NetErr err;
-			UdpEndPoint remote = m_sock.remote_endpoint(err);
-			// TcpEndPoint local = m_sock.local_endpoint(err);
-			if(!err){
-				m_key = (static_cast<unsigned long long>(remote.address().to_v4().to_uint()) << 32)
-						| (static_cast<unsigned long long>(remote.port()) << 16);
-						// | static_cast<unsigned long long>(local.port()/*kcp_id*/);
-			}
-		}
 		return m_key;
 	}
 
 	void KcpConn::SetOwner(IKcpConnOwner* o)
 	{
 		ptr_owner = o;
-	}
-
-	void KcpConn::kcpUpdateFunc()
-	{
-		auto ticks = std::chrono::duration_cast<std::chrono::milliseconds>
-						(std::chrono::system_clock::now().time_since_epoch()).count();
-
-		_lock_guard_(m_kcpLock);
-		if(!m_kcp){
-			return;
-		}
-		ikcp_update(m_kcp,ticks);	// 负责ikcp_send等
 	}
 }
 
