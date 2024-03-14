@@ -9,13 +9,14 @@ namespace AsioNet
 	public:
 		void DelConn(NetKey) override;
 		void AddConn(std::shared_ptr<TcpConn>) override;
+		void Disconnect(NetKey k);
 
 		std::shared_ptr<TcpConn> GetConn(NetKey);
 		void Broadcast(const char*,size_t trans);
 
 		~TcpConnMgr();
 	private:
-		std::map<NetKey,std::shared_ptr<TcpConn>> conns;
+		std::map<NetKey,std::shared_ptr<TcpConn>> m_conns;
 		std::mutex m_lock;
 	};
 

@@ -29,10 +29,13 @@ namespace AsioNet
 		Recv,
 		Error,
 	};
+
+	
 	struct NetEvent
 	{
 		NetKey key;
 		EventType type;
+		
 	};
 
 	class Package {

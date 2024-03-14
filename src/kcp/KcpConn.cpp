@@ -3,10 +3,10 @@
 
 namespace AsioNet
 {
-	KcpConn::KcpConn(uint32_t id,io_ctx& ctx,IEventPoller* p) :
-		m_updater(ctx), ptr_poller(p)
+	KcpConn::KcpConn(uint32_t id,std::shared_ptr<UdpSock> sock,IEventPoller* p) :
+		m_sock(sock),m_updater(sock->get_executor()), ptr_poller(p),m_conv(id)
 	{
-        m_kcp = ikcp_create(id,this/*user*/);
+        m_kcp = ikcp_create(m_conv,this/*user*/);
 		m_kcp->output = &KcpConn::kcpOutPutFunc;	// ikcp_setoutput(m_kcp,&kcpOutPutFunc);
 		ikcp_nodelay(m_kcp, 1, 2, 1, 0);
 
@@ -44,7 +44,7 @@ namespace AsioNet
 	void KcpConn::Start()
 	{
 		kcpUpdate();
-		startRead();
+		readLoop();
 	}
 
 	// ikcp_update的时候才会调用
@@ -60,7 +60,7 @@ namespace AsioNet
 	// 问题：
 	// 读，写操作都需要对整个kcp加锁
 	// 而kcp性能依赖于ikcp_update的实际效率
-	void KcpConn::startRead()
+	void KcpConn::readLoop()
 	{
 		// udp包有界性，一次一定接受一个包，如果m_kcpBuffer不够，则只接受前面那段
 		// 问题：如果对端一直发包，会不会拖垮整个update的性能
@@ -72,39 +72,42 @@ namespace AsioNet
                 return;
             }
 
-			int recv = 0;
-			{
-				_lock_guard_(self->m_kcpLock);
-				if (!self->m_kcp) {	// closed
-					return;
-				}
-
-				ikcp_input(self->m_kcp, self->m_kcpBuffer, trans);
-
-				// 这里其实用同一个buffer就行，input内部会把需要的数据拷贝走的，这里为了逻辑清楚点就用两个了
-				// 尝试从kcp里面获取一个包
-				recv = ikcp_recv(self->m_kcp, self->m_readBuffer, sizeof(self->m_readBuffer));
-			}
-
-			if(recv > 0){   
-				self->ptr_poller->PushRecv(self->Key(),self->m_readBuffer,recv);
-			}
-
-			// 源码分析：ikcp_recv
-			// if (peeksize > len) return -3;
-			// 如果对端发了个基于kcp协议的很大的包，那么这个包就会一直卡在kcp_recv里面，之后的包将再也取不出来
-			// 我这边的buffer如果不够大，那么接下来就再也取不出包了
-			// 直接断开连接
-			if (recv == -3)
-			{
-				self->err_handler();
-				return;
-			}
-
-            self->startRead();
+			self->KcpInput(self->m_kcpBuffer,trans);
+			
+            self->readLoop();
         });
 	}
 
+	void KcpConn::KcpInput(const char* data,size_t trans)
+	{
+		int recv = 0;
+		{
+			_lock_guard_(m_kcpLock);
+			if (!m_kcp) {	// closed
+				return;
+			}
+
+			ikcp_input(m_kcp, m_kcpBuffer, trans);
+
+			// 这里其实用同一个buffer就行，input内部会把需要的数据拷贝走的，这里为了逻辑清楚点就用两个了
+			// 尝试从kcp里面获取一个包
+			recv = ikcp_recv(m_kcp, m_readBuffer, sizeof(m_readBuffer));
+		}
+
+		if(recv > 0){   
+			ptr_poller->PushRecv(Key(),m_readBuffer,recv);
+		}
+
+		// 源码分析：ikcp_recv
+		// if (peeksize > len) return -3;
+		// 如果对端发了个基于kcp协议的很大的包，那么这个包就会一直卡在kcp_recv里面，之后的包将再也取不出来
+		// 我这边的buffer如果不够大，那么接下来就再也取不出包了
+		// 直接断开连接
+		if (recv == -3)
+		{
+			err_handler();
+		}
+	}
 	// kcp-go用小根堆来管理多个kcp的update
 	// 这里先用asio自带的，性能不够再做优化
 	void KcpConn::kcpUpdate()
@@ -166,6 +169,11 @@ namespace AsioNet
 
 	KcpKey KcpConn::Key()
 	{
+		if(m_key == 0){
+			m_key = (static_cast<unsigned long long>(m_sender.address().to_v4().to_uint()) << 32)
+					| (static_cast<unsigned long long>(m_sender.port()) << 16)
+					| static_cast<unsigned long long>(m_conv);
+		}
 		return m_key;
 	}
 

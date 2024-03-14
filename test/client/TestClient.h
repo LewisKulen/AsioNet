@@ -2,7 +2,7 @@
 
 #include "../../src/AsioNet.h"
 
-#include "../protoc/cpp_all_pb.h"
+#include "../../protoc/cpp_all_pb.h"
 
 #include <type_traits>
 

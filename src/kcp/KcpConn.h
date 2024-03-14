@@ -6,6 +6,11 @@
 #include "../utils/BlockBuffer.h"
 #include "../event/IEventPoller.h"
 
+// 参考资料
+// doc:https://github.com/libinzhangyuan/asio_kcp
+// doc:https://pkg.go.dev/github.com/xtaci/kcp-go
+// doc:https://luyuhuang.tech/2020/12/09/kcp.html
+
 namespace AsioNet
 {
 	using UdpEndPoint = asio::ip::udp::endpoint;
@@ -16,7 +21,6 @@ namespace AsioNet
 	const size_t AN_KCP_BUFFER_SIZE = 4096;
 
 	struct IKcpConnOwner;	// 前向声明
-	// doc:https://github.com/libinzhangyuan/asio_kcp
 
 	// ikcp_allocator:可以考虑接管内存管理
 	class KcpConn : public std::enable_shared_from_this<KcpConn>
@@ -28,7 +32,7 @@ namespace AsioNet
 		KcpConn& operator=(const KcpConn&) = delete;
 		KcpConn& operator=(KcpConn&&) = delete;
 
-		KcpConn(uint32_t id,io_ctx& ctx, IEventPoller* p);
+		KcpConn(uint32_t id,std::shared_ptr<UdpSock>, IEventPoller* p);
 
 		~KcpConn();
 
@@ -42,6 +46,8 @@ namespace AsioNet
 
 		NetKey Key();
 		
+		void KcpInput(const char* data,size_t trans);
+
 	protected:
 	    static int kcpOutPutFunc(const char *buf, int len,ikcpcb *kcp, void *user);
 
@@ -49,7 +55,7 @@ namespace AsioNet
 
 		void kcpUpdate();
 
-		void startRead();
+		void readLoop();
 
 		void err_handler();
 
@@ -58,7 +64,7 @@ namespace AsioNet
 		// 客户端只会知道服务器的一个addr，如果使用多个udpsock显然是不合理的
 		// 并且既然使用kcp了，那么链接显然不不会有太多个
 		std::shared_ptr<UdpSock> m_sock;
-
+		uint32_t m_conv;
         ikcpcb *m_kcp = nullptr;
 		asio::high_resolution_timer m_updater;
 		std::mutex m_kcpLock;

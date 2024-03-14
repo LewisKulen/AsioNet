@@ -7,18 +7,23 @@ namespace AsioNet
 	std::shared_ptr<TcpConn> TcpConnMgr::GetConn(NetKey k)
 	{
 		_lock_guard_(m_lock);
-		if(conns.find(k) != conns.end()){
-			return conns[k];
+		if(m_conns.find(k) != m_conns.end()){
+			return m_conns[k];
 		}
 		return nullptr;
 	}
 	void TcpConnMgr::DelConn(NetKey k)
 	{
 		_lock_guard_(m_lock);
-		auto itr = conns.find(k);
-		if (itr != conns.end()) {
+		m_conns.erase(k);
+	}
+	
+	void TcpConnMgr::Disconnect(NetKey k)
+	{
+		_lock_guard_(m_lock);
+		auto itr = m_conns.find(k);
+		if (itr != m_conns.end()) {
 			itr->second->Close();
-			conns.erase(itr);
 		}
 	}
 	void TcpConnMgr::AddConn(std::shared_ptr<TcpConn> conn)
@@ -27,19 +32,24 @@ namespace AsioNet
 		if(!conn){
 			return;
 		}
-		if(conns.find(conn->Key()) == conns.end()){
-			conns[conn->Key()] = conn;
+		if(m_conns.find(conn->Key()) == m_conns.end()){
+			m_conns[conn->Key()] = conn;
 		}
 	}
 	void TcpConnMgr::Broadcast(const char* data,size_t trans)
 	{
 		_lock_guard_(m_lock);
-		for(auto p : conns){
+		for(auto p : m_conns){
 			p.second->Write(data,trans);
 		}
 	}
 	TcpConnMgr::~TcpConnMgr()
-	{}
+	{
+		_lock_guard_(m_lock);
+		for(auto p : m_conns){
+			p.second->Close();
+		}
+	}
 	
 
 	// ************************************************************
@@ -99,7 +109,7 @@ namespace AsioNet
 
 	void TcpServer::Disconnect(NetKey k)
 	{
-		return connMgr.DelConn(k);
+		return connMgr.Disconnect(k);
 	}
 
 	ServerKey TcpServer::GetKey()
