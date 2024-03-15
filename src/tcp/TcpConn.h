@@ -67,6 +67,8 @@ namespace AsioNet
 
 		void err_handler();
 
+		void makeKey();
+
 	private:
 		TcpSock m_sock;
 		std::mutex m_sendLock;

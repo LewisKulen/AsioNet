@@ -18,10 +18,12 @@ namespace AsioNet
 	
 	using KcpKey = uint64_t;
 
-	const size_t AN_KCP_BUFFER_SIZE = 4096;
+	const size_t AN_KCP_BUFFER_SIZE = 2048;
 
-	struct IKcpConnOwner;	// 前向声明
+	struct IKcpConnOwner;
 
+	const uint32_t IKCP_OVERHEAD = 24;
+	const uint32_t IKCP_MTU = 1400;	// default
 	// ikcp_allocator:可以考虑接管内存管理
 	class KcpConn : public std::enable_shared_from_this<KcpConn>
 	{
@@ -32,7 +34,12 @@ namespace AsioNet
 		KcpConn& operator=(const KcpConn&) = delete;
 		KcpConn& operator=(KcpConn&&) = delete;
 
-		KcpConn(uint32_t id,std::shared_ptr<UdpSock>, IEventPoller* p);
+		// for server
+		KcpConn(std::shared_ptr<UdpSock>,const UdpEndPoint&,IEventPoller* p,uint32_t conv);
+		
+		// for client
+		KcpConn(io_ctx& ,IEventPoller*);
+		void Connect(const std::string& ip,uint16_t port,uint32_t conv);
 
 		~KcpConn();
 
@@ -42,23 +49,25 @@ namespace AsioNet
 
 		void Close();
 
-		void Start();
-
 		NetKey Key();
 		
 		void KcpInput(const char* data,size_t trans);
 
 	protected:
 	    static int kcpOutPutFunc(const char *buf, int len,ikcpcb *kcp, void *user);
-
-		void init();
-
-		void kcpUpdate();
+		static int kcpOutPutFunc1(const char *buf, int len,ikcpcb *kcp, void *user);
 
 		void readLoop();
 
+		void init();
+
+		void initKcp();
+
+		void kcpUpdate();
+
 		void err_handler();
 
+		void makeKey();
 	private:
         // kcp-go中的svr，多个kcp依赖在一个udpsock上
 		// 客户端只会知道服务器的一个addr，如果使用多个udpsock显然是不合理的

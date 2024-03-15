@@ -18,14 +18,14 @@ namespace AsioNet
 		m_conns.erase(k);
 	}
 	
-	// void KcpConnMgr::Disconnect(NetKey k)
-	// {
-	// 	_lock_guard_(m_lock);
-	// 	auto itr = m_conns.find(k);
-	// 	if (itr != m_conns.end()) {
-	// 		itr->second->Close();
-	// 	}
-	// }
+	void KcpConnMgr::Disconnect(NetKey k)
+	{
+		_lock_guard_(m_lock);
+		auto itr = m_conns.find(k);
+		if (itr != m_conns.end()) {
+			itr->second->Close();
+		}
+	}
 	void KcpConnMgr::AddConn(std::shared_ptr<KcpConn> conn)
 	{
 		_lock_guard_(m_lock);
@@ -77,14 +77,13 @@ namespace AsioNet
 
 	void KcpServer::readLoop()
 	{
-		static const uint32_t IKCP_OVERHEAD = 24;
 		m_sock.async_receive_from(asio::buffer(m_kcpBuffer, sizeof(m_kcpBuffer)), m_tempRecevier,
         [self = shared_from_this()](const NetErr& ec, size_t trans){
             if (ec){
                 return;
             }
 
-			if(trans < sizeof(IKCP_OVERHEAD)){
+			if(trans < sizeof(IKCP_OVERHEAD) || trans > IKCP_MTU){
 				self->readLoop();
 				return;
 			}
@@ -103,7 +102,7 @@ namespace AsioNet
 			if(!conn){
 				// 这里应该还有校验,不然这里如果被攻击了,那么就会一直创建conn,把服务器资源给爆了
 				auto sock = std::make_shared<UdpSock>(self->m_sock.get_executor());
-				conn = std::make_shared<KcpConn>(self->m_conv,sock,self->ptr_poller);
+				conn = std::make_shared<KcpConn>(sock,self->m_tempRecevier,self->ptr_poller,self->m_conv);
 				self->m_conns.AddConn(conn);
 			}
 
@@ -119,7 +118,6 @@ namespace AsioNet
 	
 	void KcpServer::err_handler()
 	{
-
 	}
 
 	bool KcpServer::Write(KcpKey,const char* data, size_t trans)

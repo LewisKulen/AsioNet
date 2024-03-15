@@ -3,13 +3,17 @@
 
 namespace AsioNet
 {
-	KcpConn::KcpConn(uint32_t id,std::shared_ptr<UdpSock> sock,IEventPoller* p) :
-		m_sock(sock),m_updater(sock->get_executor()), ptr_poller(p),m_conv(id)
+	KcpConn::KcpConn(std::shared_ptr<UdpSock> sock,const UdpEndPoint& remote,IEventPoller* p,uint32_t conv) :
+		m_sock(sock),m_sender(remote),m_updater(sock->get_executor()), ptr_poller(p),m_conv(conv)
 	{
-        m_kcp = ikcp_create(m_conv,this/*user*/);
-		m_kcp->output = &KcpConn::kcpOutPutFunc;	// ikcp_setoutput(m_kcp,&kcpOutPutFunc);
-		ikcp_nodelay(m_kcp, 1, 2, 1, 0);
+		init();
+		initKcp();
+		makeKey();
+	}
 
+	KcpConn::KcpConn(io_ctx& ctx,IEventPoller* p):
+		m_updater(ctx), ptr_poller(p),m_conv(0)
+	{
 		init();
 	}
 
@@ -22,6 +26,15 @@ namespace AsioNet
 	{
 		m_key = 0;
 		ptr_owner = nullptr;
+	}
+
+	void KcpConn::initKcp()
+	{
+		assert(m_conv);
+        m_kcp = ikcp_create(m_conv,this/*user*/);
+		m_kcp->output = &KcpConn::kcpOutPutFunc;	// ikcp_setoutput(m_kcp,&kcpOutPutFunc);
+		ikcp_nodelay(m_kcp, 1, 2, 1, 0);
+		ikcp_setmtu(m_kcp,IKCP_MTU);
 	}
 
 	bool KcpConn::Write(const char* data, size_t trans)
@@ -41,20 +54,39 @@ namespace AsioNet
         return ikcp_send(m_kcp, data, trans) > 0;
 	}
 
-	void KcpConn::Start()
+	void KcpConn::Connect(const std::string& ip,uint16_t port,uint32_t conv)
 	{
+		if(m_conv){
+			return;
+		}
+		m_conv = conv;
+		m_sock = std::make_shared<UdpSock>(m_updater.get_executor());
+		m_sender = UdpEndPoint(asio::ip::address::from_string(ip.c_str()),port);
+		
+		initKcp();
+		m_kcp->output = &KcpConn::kcpOutPutFunc1;
+
 		kcpUpdate();
 		readLoop();
+
+		// 这里顺序不要错了，makeKey需要保证m_sock处于打开的状态，readLoop会自动打开sock
+		makeKey();
+
+		if(ptr_owner){
+			auto conn = shared_from_this();
+			ptr_owner->AddConn(conn);
+		}
 	}
 
 	// ikcp_update的时候才会调用
 	int KcpConn::kcpOutPutFunc(const char* buf, int len, ikcpcb* kcp, void* user)
 	{
-		static NetErr ec;	// 仅为了不要抛异常
+		static NetErr ec;
 		auto ptr = static_cast<KcpConn*>(user);
 		// 这里不采用async_send的方式发送，因为kcp本身就已经是async的
 		// 而且udp的发送本来就很快，再改成async_send不仅增加逻辑复杂性，性能可能更低
-		return ptr->m_sock->send_to(asio::buffer(buf, len), ptr->m_sender);
+		ptr->m_sock->send_to(asio::buffer(buf, len), ptr->m_sender,0,ec);
+		return !ec;
 	}
 
 	// 问题：
@@ -63,8 +95,8 @@ namespace AsioNet
 	void KcpConn::readLoop()
 	{
 		// udp包有界性，一次一定接受一个包，如果m_kcpBuffer不够，则只接受前面那段
-		// 问题：如果对端一直发包，会不会拖垮整个update的性能
-		m_sock->async_receive_from(asio::buffer(m_kcpBuffer, sizeof(m_kcpBuffer)), m_tempRecevier,
+		// server有他自己的readLoop
+		m_sock->async_receive(asio::buffer(m_kcpBuffer, sizeof(m_kcpBuffer)),
         [self = shared_from_this()](const NetErr& ec, size_t trans){
             if (ec)
             {
@@ -72,11 +104,26 @@ namespace AsioNet
                 return;
             }
 
+			if (trans > IKCP_MTU)
+			{
+				return;
+			}
+			
 			self->KcpInput(self->m_kcpBuffer,trans);
 			
             self->readLoop();
         });
 	}
+
+	// 客户端版使用
+	int KcpConn::kcpOutPutFunc1(const char* buf, int len, ikcpcb* kcp, void* user)
+	{
+		static NetErr ec;
+		auto ptr = static_cast<KcpConn*>(user);
+		ptr->m_sock->send(asio::buffer(buf, len),0,ec);
+		return !ec;
+	}
+
 
 	void KcpConn::KcpInput(const char* data,size_t trans)
 	{
@@ -161,19 +208,27 @@ namespace AsioNet
 		}
 		ptr_poller->PushDisconnect(Key());// 通知上层链接关闭了
 
-		NetErr err;
-		m_sock->shutdown(asio::ip::tcp::socket::shutdown_both, err);
-		m_sock->close(err);	// 通知io_ctx，取消所有m_sock的异步操作
+		m_updater.cancel();
+		if(m_sock){
+			NetErr err;
+			m_sock->shutdown(asio::ip::tcp::socket::shutdown_both, err);
+			m_sock->close(err);	// 通知io_ctx，取消所有m_sock的异步操作
+		}
 		m_key = 0;
+	}
+
+	void KcpConn::makeKey()
+	{
+		NetErr err;
+		UdpEndPoint local = m_sock->local_endpoint(err);
+		assert(!err);
+		m_key = (static_cast<unsigned long long>(m_sender.address().to_v4().to_uint()) << 32)
+				| (static_cast<unsigned long long>(m_sender.port()) << 16)
+				| static_cast<unsigned long long>(local.port()/*listen port*/);
 	}
 
 	KcpKey KcpConn::Key()
 	{
-		if(m_key == 0){
-			m_key = (static_cast<unsigned long long>(m_sender.address().to_v4().to_uint()) << 32)
-					| (static_cast<unsigned long long>(m_sender.port()) << 16)
-					| static_cast<unsigned long long>(m_conv);
-		}
 		return m_key;
 	}
 

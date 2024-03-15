@@ -15,6 +15,7 @@ namespace AsioNet
 		m_sock(std::move(sock)),ptr_poller(p)
 	{
 		init();
+		makeKey();
 	}
 
 	TcpConn::~TcpConn()
@@ -154,17 +155,18 @@ namespace AsioNet
 
 	NetKey TcpConn::Key()
 	{
-		if(m_key == 0){
+		return m_key;
+	}
+
+	void TcpConn::makeKey()
+	{
 			NetErr err;
 			TcpEndPoint remote = m_sock.remote_endpoint(err);
 			TcpEndPoint local = m_sock.local_endpoint(err);
-			if(!err){
-				m_key = (static_cast<unsigned long long>(remote.address().to_v4().to_uint()) << 32)
-						| (static_cast<unsigned long long>(remote.port()) << 16)
-						| static_cast<unsigned long long>(local.port()/*listen port*/);
-			}
-		}
-		return m_key;
+			assert(!err);
+			m_key = (static_cast<unsigned long long>(remote.address().to_v4().to_uint()) << 32)
+					| (static_cast<unsigned long long>(remote.port()) << 16)
+					| static_cast<unsigned long long>(local.port()/*listen port*/);
 	}
 
 	void TcpConn::Connect(std::string addr, uint16_t port,int retry)
@@ -180,6 +182,7 @@ namespace AsioNet
 					}
 					return;
 				}
+				self->makeKey();
 				// 只有成功建立了之后，外部才能拿到conn
 				// 这里的顺序同accept_handler
 				if (self->ptr_owner) {

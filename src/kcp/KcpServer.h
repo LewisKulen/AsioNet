@@ -11,7 +11,7 @@ namespace AsioNet
 		void DelConn(NetKey) override;
 		void AddConn(std::shared_ptr<KcpConn>) override;
 		
-		// void Disconnect(NetKey k); // 考虑断线重连
+		void Disconnect(NetKey k); // 考虑断线重连
 		std::shared_ptr<KcpConn> GetConn(NetKey);
 		void Broadcast(const char*,size_t);
 
