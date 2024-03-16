@@ -9,11 +9,14 @@
 class TestServer {
 #include "TestServerRouter.h"
 public:
-	TestServer() :m_netMgr(8, &m_ed)
+	TestServer() :m_netMgr(8)
 	{
 		InitRouter();
-		m_netMgr.Serve(8888);
-		std::cout << "listen at:8888" << std::endl;
+		// m_netMgr.Serve(&m_ed, "127.0.0.1", 8888);
+		// std::cout << "listen at[127.0.0.1:8888]" << std::endl;
+
+		m_netMgr.Serve(&m_ed,"127.0.0.1", 8888,6666);
+		std::cout << "listen at[127.0.0.1:8888,6666]" << std::endl;
 	}
 	void Update()
 	{
@@ -33,6 +36,8 @@ public:
 	}
 
 private:
-	AsioNet::TcpNetMgr m_netMgr;
+	// AsioNet::TcpNetMgr m_netMgr;
+	AsioNet::KcpNetMgr m_netMgr;
 	AsioNet::EventDriver m_ed;
+
 };

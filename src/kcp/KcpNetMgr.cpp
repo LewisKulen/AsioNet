@@ -1,10 +1,10 @@
-#include "TcpNetMgr.h"
+#include "KcpNetMgr.h"
 #include "../utils/utils.h"
 
 namespace AsioNet
 {
 // ************************************************
-	std::shared_ptr<TcpServer> TcpServerMgr::GetServer(ServerKey k)
+	std::shared_ptr<KcpServer> KcpServerMgr::GetServer(ServerKey k)
 	{
 		_lock_guard_(m_lock);
 		if(servers.find(k) != servers.end()){
@@ -12,7 +12,7 @@ namespace AsioNet
 		}
 		return nullptr;
 	}
-	void TcpServerMgr::AddServer(std::shared_ptr<TcpServer> s)
+	void KcpServerMgr::AddServer(std::shared_ptr<KcpServer> s)
 	{
 		_lock_guard_(m_lock);
 		if(!s){
@@ -22,12 +22,12 @@ namespace AsioNet
 			servers[s->Key()] = s;
 		}
 	}
-	TcpServerMgr::~TcpServerMgr()
+	KcpServerMgr::~KcpServerMgr()
 	{}
 
 // ************************************************
 
-	TcpNetMgr::TcpNetMgr(size_t th_num) :m_isClose(false)
+	KcpNetMgr::KcpNetMgr(size_t th_num):m_isClose(false)
 	{
 		for (size_t i = 0; i < th_num; i++)
 		{
@@ -38,56 +38,58 @@ namespace AsioNet
 					{
 						break;
 					}
-					self->m_ctx.run();	// 只要有io事件，这个Run就不会返回
-					std::this_thread::sleep_for(std::chrono::milliseconds(1));
+					self->m_ctx.run();
+					// 当ctx中没有任务的时候，m_ctx会变成stopped
+					// 如果有任务，就会一直阻塞在run里面
+					std::this_thread::sleep_for(std::chrono::milliseconds(10));
 				} 
 			}));
 			thPool.back().detach();
 		}
 	}
 
-	TcpNetMgr::~TcpNetMgr()
+	KcpNetMgr::~KcpNetMgr()
 	{
 		// 通知线程退出
 		m_isClose = true;
 	}
 
-	void TcpNetMgr::Connect(IEventPoller* poller,const std::string& ip, uint16_t port,int retry/*,options*/)
+	void KcpNetMgr::Connect(IEventPoller* poller,const std::string& ip, uint16_t port,uint32_t conv)
 	{
-		auto conn = std::make_shared<TcpConn>(m_ctx, poller);
+		auto conn = std::make_shared<KcpConn>(m_ctx, poller);
 		// 连接并没有成功建立，这里不应该调用AddConn
 		conn->SetOwner(&m_connMgr);
-		conn->Connect(ip, port, retry);
+		conn->Connect(ip, port, conv);
 	}
 
-	ServerKey TcpNetMgr::Serve(IEventPoller* poller, const std::string& ip,uint16_t port /*,options*/)
+	ServerKey KcpNetMgr::Serve(IEventPoller* poller, const std::string& ip,uint16_t port, uint32_t conv)
 	{
-		auto s = std::make_shared<TcpServer>(m_ctx, poller);
-		s->Serve(ip,port);
+		auto s = std::make_shared<KcpServer>(m_ctx, poller);
+		s->Serve(ip,port,conv);
 		m_serverMgr.AddServer(s);
 		return s->Key();
 	}
 
-	bool TcpNetMgr::Send(NetKey k, const char* data, size_t trans)
+	bool KcpNetMgr::Send(NetKey k, const char* data, size_t trans)
 	{
 		auto conn = m_connMgr.GetConn(k);
 		if (conn) {
 			return conn->Write(data, trans);
 		}
 
-		ServerKey svr = GetSvrKeyFromNetKey(k);
-		auto server = m_serverMgr.GetServer(svr);
-		if(server){
-			auto client = server->GetConn(k);
-			if (client)
+		ServerKey sk = GetSvrKeyFromNetKey(k);
+		auto svr = m_serverMgr.GetServer(sk);
+		if(svr){
+			auto cl = svr->GetConn(k);
+			if (cl)
 			{
-				return client->Write(data,trans);
+				return cl->Write(data,trans);
 			}
 		}
 		return false;
 	}
 
-	void TcpNetMgr::Broadcast(ServerKey sk, const char* data, size_t trans)
+	void KcpNetMgr::Broadcast(ServerKey sk, const char* data, size_t trans)
 	{
 		auto server = m_serverMgr.GetServer(sk);
 		if (server) {
@@ -95,7 +97,7 @@ namespace AsioNet
 		}
 	}
 
-	void TcpNetMgr::Disconnect(NetKey k)
+	void KcpNetMgr::Disconnect(NetKey k)
 	{
 		m_connMgr.DelConn(k);
 

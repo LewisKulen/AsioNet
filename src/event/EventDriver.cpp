@@ -19,25 +19,25 @@ namespace AsioNet
 	{
 	}
 
-	void EventDriver::PushAccept(NetKey k)
+	void EventDriver::PushAccept(NetKey k, const std::string& ip, uint16_t port)
 	{
 		_lock_guard_(m_lock);
 		m_events.push(NetEvent{
-			k,EventType::Accept
+			k,EventType::Accept,ip,port
 			});
 	}
-	void EventDriver::PushConnect(NetKey k)
+	void EventDriver::PushConnect(NetKey k, const std::string& ip, uint16_t port)
 	{
 		_lock_guard_(m_lock);
 		m_events.push(NetEvent{
-			k,EventType::Connect
+			k,EventType::Connect,ip,port
 			});
 	}
-	void EventDriver::PushDisconnect(NetKey k)
+	void EventDriver::PushDisconnect(NetKey k, const std::string& ip, uint16_t port)
 	{
 		_lock_guard_(m_lock);
 		m_events.push(NetEvent{
-			k,EventType::Disconnect
+			k,EventType::Disconnect,ip,port
 			});
 	}
 	void EventDriver::PushRecv(NetKey k, const char* data, size_t trans)
@@ -85,20 +85,17 @@ namespace AsioNet
 		}
 		case EventType::Accept:
 		{
-			auto [ip, port] = NetKey2Addr(e.key);
-			m_handler[static_cast<int>(EventType::Accept)](e.key, ip, port);
+			m_handler[static_cast<int>(EventType::Accept)](e.key, e.ip, e.port);
 			break;
 		}
 		case EventType::Connect:
 		{
-			auto [ip, port] = NetKey2Addr(e.key);
-			m_handler[static_cast<int>(EventType::Connect)](e.key, ip, port);
+			m_handler[static_cast<int>(EventType::Connect)](e.key, e.ip, e.port);
 			break;
 		}
 		case EventType::Disconnect:
 		{
-			auto [ip, port] = NetKey2Addr(e.key);
-			m_handler[static_cast<int>(EventType::Disconnect)](e.key, ip, port);
+			m_handler[static_cast<int>(EventType::Disconnect)](e.key, e.ip, e.port);
 			break;
 		}
 		}

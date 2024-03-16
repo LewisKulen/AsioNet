@@ -35,7 +35,8 @@ namespace AsioNet
 	{
 		NetKey key;
 		EventType type;
-		
+		std::string ip;
+		uint16_t port;
 	};
 
 	class Package {
@@ -83,9 +84,9 @@ namespace AsioNet
 		~EventDriver();
 
 		// 衔接底层的接口
-		void PushAccept(NetKey k) override;
-		void PushConnect(NetKey k) override;
-		void PushDisconnect(NetKey k) override;
+		void PushAccept(NetKey k, const std::string& ip, uint16_t port) override;
+		void PushConnect(NetKey k, const std::string& ip, uint16_t port) override;
+		void PushDisconnect(NetKey k, const std::string& ip, uint16_t port) override;
 		void PushRecv(NetKey k, const char* data, size_t trans) override;
 
 		// *********************** 实际对外的方法 **************************

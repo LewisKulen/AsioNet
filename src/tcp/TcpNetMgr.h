@@ -4,8 +4,6 @@
 #include "../event/IEventPoller.h"
 #include "../tcp/TcpServer.h"
 
-#include <map>
-
 namespace AsioNet
 {
 
@@ -37,7 +35,7 @@ namespace AsioNet
       ~TcpServerMgr();
     private:
       std::mutex m_lock;
-      std::map<ServerKey,std::shared_ptr<TcpServer>> servers;
+      std::unordered_map<ServerKey,std::shared_ptr<TcpServer>> servers;
     };
 
     class TcpNetMgr {
@@ -48,22 +46,21 @@ namespace AsioNet
         TcpNetMgr& operator=(const TcpNetMgr&) = delete;
         TcpNetMgr& operator=(TcpNetMgr&&) = delete;
 
-        TcpNetMgr(size_t th_num/*线程数量*/, IEventPoller* ptr_poller);
+        TcpNetMgr(size_t th_num/*线程数量*/);
         ~TcpNetMgr();
 
         // ******************** 连接相关 ********************
-        ServerKey Serve(uint16_t port/*,options*/);
+        ServerKey Serve(IEventPoller* poller,const std::string& ip,uint16_t port/*,options*/);
         void Broadcast(ServerKey, const char* data, size_t trans);
 
         // retry：连接失败后的重试次数
-        void Connect(std::string ip, uint16_t port,int retry = 1/*,options*/);       
+        void Connect(IEventPoller* poller,const std::string& ip, uint16_t port,int retry = 1/*,options*/);
         void Disconnect(NetKey);
         bool Send(NetKey, const char* data, size_t trans);
-
     private:
         io_ctx m_ctx;
+        std::atomic<bool> m_isClose;
         std::vector<std::thread> thPool;
-        IEventPoller* m_poller;
         TcpConnMgr m_connMgr;
         TcpServerMgr m_serverMgr;
     };

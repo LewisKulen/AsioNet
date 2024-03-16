@@ -48,7 +48,7 @@ namespace AsioNet
 		
 		bool Write(const char* data, size_t trans);
 
-		void Connect(std::string addr, uint16_t port, int retry);
+		void Connect(const std::string& ip, uint16_t port, int retry);
 
 		// 主动关闭这个连接，一旦关闭连接，就会调用owner->DelConn
 		// owner不应该再继续拥有conn的所有权，因为底层的sock已经关闭，接下来的所有操作都将失败
@@ -58,6 +58,8 @@ namespace AsioNet
 		// 只能在connect/accept成功了之后使用
 		void StartRead(); 
 		
+		TcpEndPoint Remote();
+
 		NetKey Key();
 	protected:
 		void init();
@@ -66,8 +68,6 @@ namespace AsioNet
 		void write_handler(const NetErr&, size_t);
 
 		void err_handler();
-
-		void makeKey();
 
 	private:
 		TcpSock m_sock;

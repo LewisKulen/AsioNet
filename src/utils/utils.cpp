@@ -1,17 +1,35 @@
 #include "./utils.h"
 
-namespace AsioNet {
-	NetAddr NetKey2Addr(NetKey key)
+namespace AsioNet 
+{
+	NetKey GenNetKey(ServerKey svr)
 	{
-		NetAddr res;
-		unsigned ip = key >> 32;
-		res.ip = asio::ip::make_address_v4(ip).to_string();
-		res.port = static_cast<uint16_t>((key & 0xffff0000) >> 16);
-		return res;
+		static NetKey id = AN_START_TIME % 666 + 666666;
+		static std::mutex lock;
+
+		_lock_guard_(lock);
+		if (id == UINT32_MAX){
+			id = 1;
+		}
+		++id;
+		if (svr){
+			return (static_cast<uint64_t>(svr) << 32) | id;
+		}
+		return id;
 	}
 
-	ServerKey NetKey2ServerKey(NetKey key)
+	ServerKey GenSvrKey()
 	{
-		return key & 0xffff;
+		static ServerKey id = AN_START_TIME % 888 + 88888888;
+		static std::mutex lock;
+
+		_lock_guard_(lock);
+		++id;
+		return id;
+	}
+
+	ServerKey GetSvrKeyFromNetKey(NetKey key)
+	{
+		return static_cast<ServerKey>(key >> 32);
 	}
 }

@@ -1,5 +1,5 @@
-#include "./KcpServer.h"
-#include <iostream>
+#include "KcpConn.h"
+#include "../utils/utils.h"
 
 namespace AsioNet
 {
@@ -8,12 +8,13 @@ namespace AsioNet
 	{
 		init();
 		initKcp();
-		makeKey();
 	}
 
+	// client
 	KcpConn::KcpConn(io_ctx& ctx,IEventPoller* p):
 		m_updater(ctx), ptr_poller(p),m_conv(0)
 	{
+		m_sock = std::make_shared<UdpSock>(ctx);
 		init();
 	}
 
@@ -24,7 +25,7 @@ namespace AsioNet
 
 	void KcpConn::init()
 	{
-		m_key = 0;
+		m_key = GenNetKey();
 		ptr_owner = nullptr;
 	}
 
@@ -60,22 +61,19 @@ namespace AsioNet
 			return;
 		}
 		m_conv = conv;
-		m_sock = std::make_shared<UdpSock>(m_updater.get_executor());
 		m_sender = UdpEndPoint(asio::ip::address::from_string(ip.c_str()),port);
-		
+		m_sock->connect(m_sender);
+
 		initKcp();
 		m_kcp->output = &KcpConn::kcpOutPutFunc1;
-
-		kcpUpdate();
+		KcpUpdate();
 		readLoop();
 
-		// 这里顺序不要错了，makeKey需要保证m_sock处于打开的状态，readLoop会自动打开sock
-		makeKey();
-
+		// 这里可以做成发一个协议过去验证成功了才算连接成功
 		if(ptr_owner){
-			auto conn = shared_from_this();
-			ptr_owner->AddConn(conn);
+			ptr_owner->AddConn(shared_from_this());
 		}
+		ptr_poller->PushConnect(Key(),ip,port);
 	}
 
 	// ikcp_update的时候才会调用
@@ -124,7 +122,6 @@ namespace AsioNet
 		return !ec;
 	}
 
-
 	void KcpConn::KcpInput(const char* data,size_t trans)
 	{
 		int recv = 0;
@@ -134,7 +131,7 @@ namespace AsioNet
 				return;
 			}
 
-			ikcp_input(m_kcp, m_kcpBuffer, trans);
+			ikcp_input(m_kcp, data, trans);
 
 			// 这里其实用同一个buffer就行，input内部会把需要的数据拷贝走的，这里为了逻辑清楚点就用两个了
 			// 尝试从kcp里面获取一个包
@@ -157,10 +154,11 @@ namespace AsioNet
 	}
 	// kcp-go用小根堆来管理多个kcp的update
 	// 这里先用asio自带的，性能不够再做优化
-	void KcpConn::kcpUpdate()
+	void KcpConn::KcpUpdate()
 	{
+		m_updater.expires_after(std::chrono::milliseconds(10));
 		m_updater.async_wait([self = shared_from_this()](const NetErr& ec) {
-			if (!ec)
+			if (ec)
 			{
 				self->err_handler();
 				return;
@@ -175,10 +173,7 @@ namespace AsioNet
 				}
 				ikcp_update(self->m_kcp, ticks);
 			}
-
-			self->m_updater.expires_after(std::chrono::milliseconds(10));
-
-			self->kcpUpdate();
+			self->KcpUpdate();
 			});
 	}
 
@@ -206,7 +201,7 @@ namespace AsioNet
 			// 连接断开之后，外部需要彻底失去对conn的掌控，这样的话conn就会自动消亡
 			ptr_owner->DelConn(Key());
 		}
-		ptr_poller->PushDisconnect(Key());// 通知上层链接关闭了
+		ptr_poller->PushDisconnect(Key(),m_sender.address().to_string(),m_sender.port());// 通知上层链接关闭了
 
 		m_updater.cancel();
 		if(m_sock){
@@ -217,19 +212,14 @@ namespace AsioNet
 		m_key = 0;
 	}
 
-	void KcpConn::makeKey()
-	{
-		NetErr err;
-		UdpEndPoint local = m_sock->local_endpoint(err);
-		assert(!err);
-		m_key = (static_cast<unsigned long long>(m_sender.address().to_v4().to_uint()) << 32)
-				| (static_cast<unsigned long long>(m_sender.port()) << 16)
-				| static_cast<unsigned long long>(local.port()/*listen port*/);
-	}
-
-	KcpKey KcpConn::Key()
+	NetKey KcpConn::Key()
 	{
 		return m_key;
+	}
+
+	UdpEndPoint KcpConn::Remote()
+	{
+		return m_sender;
 	}
 
 	void KcpConn::SetOwner(IKcpConnOwner* o)

@@ -31,13 +31,12 @@ namespace AsioNet
 		TcpServer(io_ctx& ctx,IEventPoller* p);
 		~TcpServer();
 
-		// 默认只有一张网卡
-		void Serve(uint16_t port);
+		void Serve(const std::string& ip, uint16_t port);
 
 		void Disconnect(NetKey);
 		void Broadcast(const char*,size_t trans);
 		std::shared_ptr<TcpConn> GetConn(NetKey k);
-		ServerKey GetKey();
+		ServerKey Key();
 
 	protected:
 		void doAccept();

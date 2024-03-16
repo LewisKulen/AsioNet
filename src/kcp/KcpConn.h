@@ -16,8 +16,6 @@ namespace AsioNet
 	using UdpEndPoint = asio::ip::udp::endpoint;
 	using UdpSock = asio::ip::udp::socket;
 	
-	using KcpKey = uint64_t;
-
 	const size_t AN_KCP_BUFFER_SIZE = 2048;
 
 	struct IKcpConnOwner;
@@ -51,7 +49,11 @@ namespace AsioNet
 
 		NetKey Key();
 		
+		UdpEndPoint Remote();
+
 		void KcpInput(const char* data,size_t trans);
+		
+		void KcpUpdate();
 
 	protected:
 	    static int kcpOutPutFunc(const char *buf, int len,ikcpcb *kcp, void *user);
@@ -63,11 +65,7 @@ namespace AsioNet
 
 		void initKcp();
 
-		void kcpUpdate();
-
 		void err_handler();
-
-		void makeKey();
 	private:
         // kcp-go中的svr，多个kcp依赖在一个udpsock上
 		// 客户端只会知道服务器的一个addr，如果使用多个udpsock显然是不合理的

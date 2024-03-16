@@ -1,5 +1,6 @@
 #include "TcpServer.h"
 #include <utility>	// std::move
+#include "../utils/utils.h"
 
 namespace AsioNet
 {
@@ -50,13 +51,14 @@ namespace AsioNet
 			p.second->Close();
 		}
 	}
-	
 
 	// ************************************************************
 
 	TcpServer::TcpServer(io_ctx& ctx,IEventPoller* p):
-		m_acceptor(ctx),ptr_poller(p),m_key(0)
-	{}
+		m_acceptor(ctx),ptr_poller(p)
+	{
+		m_key = GenSvrKey();
+	}
 
 	TcpServer::~TcpServer()
 	{
@@ -64,14 +66,13 @@ namespace AsioNet
 		m_acceptor.close(err);
 	}
 
-	void TcpServer::Serve(uint16_t port)
+	void TcpServer::Serve(const std::string& ip,uint16_t port)
 	{
-		TcpEndPoint ep(asio::ip::tcp::v4(), port);
+		TcpEndPoint ep(asio::ip::address_v4().from_string(ip), port);
 		m_acceptor.open(ep.protocol());
 		m_acceptor.set_option(asio::ip::tcp::acceptor::reuse_address(true));
 		m_acceptor.bind(ep);
 		m_acceptor.listen();
-		
 		doAccept();
 	}
 
@@ -90,7 +91,9 @@ namespace AsioNet
 			// 如果PushAccept之后立即Write，要保证此时connMgr里面有
 			// PushAccept显然要在PushRecv之前，遂采用如下顺序
 			self->connMgr.AddConn(conn);
-			self->ptr_poller->PushAccept(conn->Key());
+			
+			TcpEndPoint remote = conn->Remote();
+			self->ptr_poller->PushAccept(conn->Key(), remote.address().to_string(),remote.port());
 			conn->StartRead();
 
 			self->doAccept();
@@ -112,12 +115,8 @@ namespace AsioNet
 		return connMgr.Disconnect(k);
 	}
 
-	ServerKey TcpServer::GetKey()
+	ServerKey TcpServer::Key()
 	{
-		if(!m_key){
-			NetErr err;
-			m_key = static_cast<uint16_t>(m_acceptor.local_endpoint(err).port());
-		}
 		return m_key;
 	}
 

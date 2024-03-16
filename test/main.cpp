@@ -3,8 +3,10 @@
 
 int main()
 {
-
 	TestClient c;
-
+	c.Update();
+	//TestServer s;
+	//s.Update();
+	
 	return 0;
 }
