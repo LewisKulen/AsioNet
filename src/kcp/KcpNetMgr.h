@@ -16,6 +16,7 @@ namespace AsioNet
       std::unordered_map<ServerKey,std::shared_ptr<KcpServer>> servers;
     };
 
+    // 注意：kcp这边断连判定需要心跳去解决，交给应用层去解决更为合理
     class KcpNetMgr {
     public:
         KcpNetMgr() = delete;

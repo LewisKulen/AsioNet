@@ -126,14 +126,6 @@ namespace AsioNet
 
 			auto& remote = self->m_tempRecevier;
 			auto conn = self->m_conns.GetConn(remote);
-			//if(conn){
-			//	uint32_t sn = ikcp_getconv(self->m_kcpBuffer + 12);
-			//	if (sn == 0)	// 断线重连了
-			//	{
-			//		conn->Close();
-			//		conn.reset();
-			//	}
-			//}
 
 			if (!conn)
 			{

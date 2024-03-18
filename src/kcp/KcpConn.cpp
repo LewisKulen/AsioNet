@@ -69,7 +69,8 @@ namespace AsioNet
 		KcpUpdate();
 		readLoop();
 
-		// 这里可以做成发一个协议过去验证成功了才算连接成功
+		// 这里可以做成发一个协议过去验证成功并收到返回了才算成功
+		// 相当于要异步处理
 		if(ptr_owner){
 			ptr_owner->AddConn(shared_from_this());
 		}
@@ -96,14 +97,12 @@ namespace AsioNet
 		// server有他自己的readLoop
 		m_sock->async_receive(asio::buffer(m_kcpBuffer, sizeof(m_kcpBuffer)),
         [self = shared_from_this()](const NetErr& ec, size_t trans){
-            if (ec)
-            {
+            if (ec){
                 self->err_handler();
                 return;
             }
 
-			if (trans > IKCP_MTU)
-			{
+			if (trans < sizeof(IKCP_OVERHEAD) || trans > IKCP_MTU) {
 				return;
 			}
 			
@@ -147,8 +146,7 @@ namespace AsioNet
 		// 如果对端发了个基于kcp协议的很大的包，那么这个包就会一直卡在kcp_recv里面，之后的包将再也取不出来
 		// 我这边的buffer如果不够大，那么接下来就再也取不出包了
 		// 直接断开连接
-		if (recv == -3)
-		{
+		if (recv == -3){
 			err_handler();
 		}
 	}
@@ -156,7 +154,31 @@ namespace AsioNet
 	// 这里先用asio自带的，性能不够再做优化
 	void KcpConn::KcpUpdate()
 	{
-		m_updater.expires_after(std::chrono::milliseconds(10));
+		auto ticks = std::chrono::duration_cast<std::chrono::milliseconds>
+			(std::chrono::system_clock::now().time_since_epoch()).count();
+
+		uint32_t after = 0;	// 10ms
+
+		{
+			_lock_guard_(m_kcpLock);
+			if (!m_kcp)
+			{
+				return;
+			}
+
+			// 正常一次check，一次update，然后再check获取下次update的时间
+			// 这里直接用循环了
+			ikcp_update(m_kcp, ticks);
+			after = ikcp_check(m_kcp, ticks);
+		}
+
+		if (after <= ticks)	// 理论上不会出现这种情况，防止有bug
+		{
+			after = ticks + 10;
+		}
+
+		m_updater.expires_after(std::chrono::milliseconds(after - ticks));
+		// asio本身就是用小根堆去处理定时任务的(网上说的，我没看过)，所以就不像kcp-go里面那样自己实现了
 		m_updater.async_wait([self = shared_from_this()](const NetErr& ec) {
 			if (ec)
 			{
@@ -164,15 +186,6 @@ namespace AsioNet
 				return;
 			}
 
-			auto ticks = std::chrono::duration_cast<std::chrono::milliseconds>
-				(std::chrono::system_clock::now().time_since_epoch()).count();
-			{
-				_lock_guard_(self->m_kcpLock);
-				if (!self->m_kcp) {
-					return;
-				}
-				ikcp_update(self->m_kcp, ticks);
-			}
 			self->KcpUpdate();
 			});
 	}

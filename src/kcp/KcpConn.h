@@ -83,7 +83,7 @@ namespace AsioNet
 
 		// BlockSendBuffer<1024,2> m_sendBuffer;
         // 用于接受kcp协议的buffer，kcp协议经过分片处理，不需要很大
-		// 这里看4096比较顺眼就用这个数字了
+		// 这里看2048比较顺眼就用这个数字了
 		char m_kcpBuffer[AN_KCP_BUFFER_SIZE];
 		char m_readBuffer[AN_MSG_MAX_SIZE];
 		NetKey m_key;
