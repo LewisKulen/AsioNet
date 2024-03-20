@@ -19,10 +19,16 @@ namespace AsioNet
 	const size_t AN_KCP_BUFFER_SIZE = 2048;
 
 	struct IKcpConnOwner;
+	enum class KcpConnMode
+	{
+		KCM_SERVER	= 1,
+		KCM_CLIENT	= 2,
+	};
 
 	const uint32_t IKCP_OVERHEAD = 24;
 	const uint32_t IKCP_MTU = 1400;	// default
 	// ikcp_allocator:可以考虑接管内存管理
+	// 请使用shared_ptr管理对象
 	class KcpConn : public std::enable_shared_from_this<KcpConn>
 	{
 	public:
@@ -31,12 +37,14 @@ namespace AsioNet
 		KcpConn(KcpConn&&) = delete;
 		KcpConn& operator=(const KcpConn&) = delete;
 		KcpConn& operator=(KcpConn&&) = delete;
-
+		
 		// for server
 		KcpConn(std::shared_ptr<UdpSock>,const UdpEndPoint&,IEventPoller* p,uint32_t conv);
 		
 		// for client
 		KcpConn(io_ctx& ,IEventPoller*);
+
+		// 目前其实是同步连接
 		void Connect(const std::string& ip,uint16_t port,uint32_t conv);
 
 		~KcpConn();
@@ -56,7 +64,9 @@ namespace AsioNet
 		void KcpUpdate();
 
 	protected:
+		// 服务器创建的conn使用的output
 	    static int kcpOutPutFunc(const char *buf, int len,ikcpcb *kcp, void *user);
+		// connect用的output
 		static int kcpOutPutFunc1(const char *buf, int len,ikcpcb *kcp, void *user);
 
 		void readLoop();
@@ -67,34 +77,48 @@ namespace AsioNet
 
 		void err_handler();
 	private:
-        // kcp-go中的svr，多个kcp依赖在一个udpsock上
-		// 客户端只会知道服务器的一个addr，如果使用多个udpsock显然是不合理的
-		// 并且既然使用kcp了，那么链接显然不不会有太多个
+        // kcpsvr中，多个kcp依赖在一个udpsock上，所以这里使用了shared_ptr
 		std::shared_ptr<UdpSock> m_sock;
+
+		// kcp相关
 		uint32_t m_conv;
         ikcpcb *m_kcp = nullptr;
 		asio::high_resolution_timer m_updater;
 		std::mutex m_kcpLock;
 
-		UdpEndPoint m_sender;	// 发送用
+		// 对端addr
+		UdpEndPoint m_sender;
 		
-		// used only in svr mode
-		UdpEndPoint m_tempRecevier;	// 接收用
-
-		// BlockSendBuffer<1024,2> m_sendBuffer;
         // 用于接受kcp协议的buffer，kcp协议经过分片处理，不需要很大
-		// 这里看2048比较顺眼就用这个数字了
 		char m_kcpBuffer[AN_KCP_BUFFER_SIZE];
 		char m_readBuffer[AN_MSG_MAX_SIZE];
 		NetKey m_key;
-
+		KcpConnMode m_mode;
+		
 		IEventPoller* ptr_poller;
 		IKcpConnOwner* ptr_owner;
 	};
 
-	struct IKcpConnOwner {	// 为了管理连接而设计
+	struct IKcpConnOwner {
 		virtual void AddConn(std::shared_ptr<KcpConn>) = 0;
 		virtual void DelConn(NetKey) = 0;
 		virtual ~IKcpConnOwner() {}
+	};
+
+	class KcpConnMgr:public IKcpConnOwner {
+	public:
+		void DelConn(NetKey) override;
+		void AddConn(std::shared_ptr<KcpConn>) override;
+		
+		void Disconnect(NetKey k);
+		std::shared_ptr<KcpConn> GetConn(NetKey);
+		std::shared_ptr<KcpConn> GetConn(const UdpEndPoint&);
+		void Broadcast(const char*,size_t);
+
+		~KcpConnMgr() override;
+	private:
+		std::unordered_map<NetKey,std::shared_ptr<KcpConn>> m_conns;
+		std::unordered_map<UdpEndPoint,NetKey> m_connHelper;
+		std::mutex m_lock;
 	};
 }

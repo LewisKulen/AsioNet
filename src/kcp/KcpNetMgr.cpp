@@ -3,30 +3,6 @@
 
 namespace AsioNet
 {
-// ************************************************
-	std::shared_ptr<KcpServer> KcpServerMgr::GetServer(ServerKey k)
-	{
-		_lock_guard_(m_lock);
-		if(servers.find(k) != servers.end()){
-			return servers[k];
-		}
-		return nullptr;
-	}
-	void KcpServerMgr::AddServer(std::shared_ptr<KcpServer> s)
-	{
-		_lock_guard_(m_lock);
-		if(!s){
-			return;
-		}
-		if(servers.find(s->Key()) == servers.end()){
-			servers[s->Key()] = s;
-		}
-	}
-	KcpServerMgr::~KcpServerMgr()
-	{}
-
-// ************************************************
-
 	KcpNetMgr::KcpNetMgr(size_t th_num):m_isClose(false)
 	{
 		for (size_t i = 0; i < th_num; i++)
@@ -39,12 +15,9 @@ namespace AsioNet
 						break;
 					}
 					self->m_ctx.run();
-					// 当ctx中没有任务的时候，m_ctx会变成stopped
-					// 如果有任务，就会一直阻塞在run里面
 					std::this_thread::sleep_for(std::chrono::milliseconds(10));
 				} 
 			}));
-			thPool.back().detach();
 		}
 	}
 
@@ -52,6 +25,11 @@ namespace AsioNet
 	{
 		// 通知线程退出
 		m_isClose = true;
+		m_ctx.stop();
+		// 等待线程退出
+		for(auto& th : thPool){
+			th.join();
+		}
 	}
 
 	void KcpNetMgr::Connect(IEventPoller* poller,const std::string& ip, uint16_t port,uint32_t conv)

@@ -8,36 +8,14 @@ namespace AsioNet
 {
 
     /*
-                    事件处理器
-    TcpNetMgr------>EventDriver---->Handler
-      |     \          ^
-      v      \         |
-    TcpServer \    IEventPoller
-      \        |       ^
-       \       v      /
-        -->TcpConn----
-    
-    *注意*：
-    1.Update会以顺序的方式取走并处理完所有的事件才返回
-    2.默认的事件处理器,优先为了效率考虑：
-      将调用签名为 void RecvHandler(NetKey, const char *data, size_t recv) 的接口函数。
-      传递给RecvHandler的参数为内部存储的底层指针和数据大小，不做额外的数据拷贝。
-      使用者如果对该指针进行了写操作/越界访问，是很危险的，请注意。
-    3.你可以通过修改EventDriver::PopOne中对EventType::Recv事件的处理方式来修改上述行为
-    // Encoder,Decoder,Router放在业务层私以为更加合理，遂不在网络层做处理
-    
+    TcpNetMgr         EventDriver---->Handler
+      |     \             ^
+      v      \            |
+    TcpServer \           |
+      \        |          |
+       \       v          |
+        -->TcpConn---->IEventPoller
     */
-    
-    class TcpServerMgr{
-    public:
-      std::shared_ptr<TcpServer> GetServer(ServerKey);
-      void AddServer(std::shared_ptr<TcpServer>);
-      ~TcpServerMgr();
-    private:
-      std::mutex m_lock;
-      std::unordered_map<ServerKey,std::shared_ptr<TcpServer>> servers;
-    };
-
     class TcpNetMgr {
     public:
         TcpNetMgr() = delete;
@@ -50,11 +28,10 @@ namespace AsioNet
         ~TcpNetMgr();
 
         // ******************** 连接相关 ********************
-        ServerKey Serve(IEventPoller* poller,const std::string& ip,uint16_t port/*,options*/);
+        ServerKey Serve(IEventPoller* poller,const std::string& ip,uint16_t port);
         void Broadcast(ServerKey, const char* data, size_t trans);
 
-        // retry：连接失败后的重试次数
-        void Connect(IEventPoller* poller,const std::string& ip, uint16_t port,int retry = 1/*,options*/);
+        void Connect(IEventPoller* poller,const std::string& ip, uint16_t port,int retry = 1/*连接失败后的重试次数*/);
         void Disconnect(NetKey);
         bool Send(NetKey, const char* data, size_t trans);
     private:

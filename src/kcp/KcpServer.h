@@ -6,23 +6,6 @@
 
 namespace AsioNet
 {
-	class KcpConnMgr:public IKcpConnOwner {
-	public:
-		void DelConn(NetKey) override;
-		void AddConn(std::shared_ptr<KcpConn>) override;
-		
-		void Disconnect(NetKey k); // 考虑断线重连
-		std::shared_ptr<KcpConn> GetConn(NetKey);
-		std::shared_ptr<KcpConn> GetConn(const UdpEndPoint&);
-		void Broadcast(const char*,size_t);
-
-		~KcpConnMgr();
-	private:
-		std::unordered_map<NetKey,std::shared_ptr<KcpConn>> m_conns;
-		std::unordered_map<UdpEndPoint,NetKey> m_connHelper;
-		std::mutex m_lock;
-	};
-
 	// ikcp_allocator:可以考虑接管内存管理
 	class KcpServer : public std::enable_shared_from_this<KcpServer>
 	{
@@ -61,5 +44,15 @@ namespace AsioNet
 		KcpConnMgr m_conns;
 		IEventPoller* ptr_poller;
 	};
+
+    class KcpServerMgr{
+    public:
+      std::shared_ptr<KcpServer> GetServer(ServerKey);
+      void AddServer(std::shared_ptr<KcpServer>);
+      ~KcpServerMgr();
+    private:
+      std::mutex m_lock;
+      std::unordered_map<ServerKey,std::shared_ptr<KcpServer>> servers;
+    };
 
 }

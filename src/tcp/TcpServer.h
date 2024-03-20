@@ -5,21 +5,6 @@
 
 namespace AsioNet
 {
-	class TcpConnMgr:public ITcpConnOwner {
-	public:
-		void DelConn(NetKey) override;
-		void AddConn(std::shared_ptr<TcpConn>) override;
-		void Disconnect(NetKey k);
-
-		std::shared_ptr<TcpConn> GetConn(NetKey);
-		void Broadcast(const char*,size_t trans);
-
-		~TcpConnMgr();
-	private:
-		std::map<NetKey,std::shared_ptr<TcpConn>> m_conns;
-		std::mutex m_lock;
-	};
-
 	class TcpServer: public std::enable_shared_from_this<TcpServer> {
 	public:
 		TcpServer() = delete;
@@ -29,17 +14,22 @@ namespace AsioNet
 		TcpServer& operator=(TcpServer&&) = delete;
 
 		TcpServer(io_ctx& ctx,IEventPoller* p);
+		
 		~TcpServer();
 
 		void Serve(const std::string& ip, uint16_t port);
 
 		void Disconnect(NetKey);
+
 		void Broadcast(const char*,size_t trans);
+
 		std::shared_ptr<TcpConn> GetConn(NetKey k);
+
 		ServerKey Key();
 
 	protected:
 		void doAccept();
+
 	private:
 		asio::ip::tcp::acceptor m_acceptor;
 		
@@ -47,4 +37,15 @@ namespace AsioNet
 		IEventPoller* ptr_poller;
 		ServerKey m_key;
 	};
+
+	// 自己用的一个简易Server管理器
+    class TcpServerMgr{
+    public:
+      std::shared_ptr<TcpServer> GetServer(ServerKey);
+      void AddServer(std::shared_ptr<TcpServer>);
+      ~TcpServerMgr();
+    private:
+      std::mutex m_lock;
+      std::unordered_map<ServerKey,std::shared_ptr<TcpServer>> servers;
+    };
 }

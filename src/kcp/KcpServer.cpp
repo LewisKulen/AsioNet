@@ -2,84 +2,6 @@
 
 namespace AsioNet
 {
-	// ****************** TcpConnMgr *******************
-
-	void KcpConnMgr::DelConn(NetKey key)
-	{
-		_lock_guard_(m_lock);
-		auto itr = m_conns.find(key);
-		if (itr != m_conns.end())
-		{
-			auto conn = itr->second;
-			m_conns.erase(conn->Key());
-			m_connHelper.erase(conn->Remote());
-		}
-	}
-
-	void KcpConnMgr::AddConn(std::shared_ptr<KcpConn> conn)
-	{
-		_lock_guard_(m_lock);
-		if (!conn) {
-			return;
-		}
-		if (m_conns.find(conn->Key()) == m_conns.end()) {
-			m_conns[conn->Key()] = conn;
-			m_connHelper[conn->Remote()] = conn->Key();
-		}
-	}
-	
-	std::shared_ptr<KcpConn> KcpConnMgr::GetConn(NetKey k)
-	{
-		_lock_guard_(m_lock);
-		auto itr = m_conns.find(k);
-		if(itr != m_conns.end()){
-			return itr->second;
-		}
-		return nullptr;
-	}
-
-	std::shared_ptr<KcpConn> KcpConnMgr::GetConn(const UdpEndPoint& remote)
-	{
-		_lock_guard_(m_lock);
-		auto itr = m_connHelper.find(remote);
-		if (itr != m_connHelper.end()) {
-			auto conn = m_conns.find(itr->second);
-			if (conn != m_conns.end())
-			{
-				return conn->second;
-			}
-		}
-		return nullptr;
-	}
-
-	void KcpConnMgr::Disconnect(NetKey k)
-	{
-		_lock_guard_(m_lock);
-		auto itr = m_conns.find(k);
-		if (itr != m_conns.end()) {
-			itr->second->Close();
-		}
-	}
-
-	void KcpConnMgr::Broadcast(const char* data,size_t trans)
-	{
-		_lock_guard_(m_lock);
-		for(auto p : m_conns){
-			p.second->Write(data,trans);
-		}
-	}
-
-	KcpConnMgr::~KcpConnMgr()
-	{
-		_lock_guard_(m_lock);
-		for(auto p : m_conns){
-			p.second->Close();
-		}
-	}
-	
-	// ************************************************************
-
-
 	KcpServer::KcpServer(io_ctx& ctx,IEventPoller* p):
 	ptr_poller(p),m_conv(0)
 	{
@@ -180,5 +102,29 @@ namespace AsioNet
 		return m_conns.Disconnect(k);
 	}
 
+}
+
+namespace AsioNet
+{
+	std::shared_ptr<KcpServer> KcpServerMgr::GetServer(ServerKey k)
+	{
+		_lock_guard_(m_lock);
+		if(servers.find(k) != servers.end()){
+			return servers[k];
+		}
+		return nullptr;
+	}
+	void KcpServerMgr::AddServer(std::shared_ptr<KcpServer> s)
+	{
+		_lock_guard_(m_lock);
+		if(!s){
+			return;
+		}
+		if(servers.find(s->Key()) == servers.end()){
+			servers[s->Key()] = s;
+		}
+	}
+	KcpServerMgr::~KcpServerMgr()
+	{}
 }
 

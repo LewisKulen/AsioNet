@@ -4,56 +4,6 @@
 
 namespace AsioNet
 {
-	// ****************** TcpConnMgr *******************
-	std::shared_ptr<TcpConn> TcpConnMgr::GetConn(NetKey k)
-	{
-		_lock_guard_(m_lock);
-		if(m_conns.find(k) != m_conns.end()){
-			return m_conns[k];
-		}
-		return nullptr;
-	}
-	void TcpConnMgr::DelConn(NetKey k)
-	{
-		_lock_guard_(m_lock);
-		m_conns.erase(k);
-	}
-	
-	void TcpConnMgr::Disconnect(NetKey k)
-	{
-		_lock_guard_(m_lock);
-		auto itr = m_conns.find(k);
-		if (itr != m_conns.end()) {
-			itr->second->Close();
-		}
-	}
-	void TcpConnMgr::AddConn(std::shared_ptr<TcpConn> conn)
-	{
-		_lock_guard_(m_lock);
-		if(!conn){
-			return;
-		}
-		if(m_conns.find(conn->Key()) == m_conns.end()){
-			m_conns[conn->Key()] = conn;
-		}
-	}
-	void TcpConnMgr::Broadcast(const char* data,size_t trans)
-	{
-		_lock_guard_(m_lock);
-		for(auto p : m_conns){
-			p.second->Write(data,trans);
-		}
-	}
-	TcpConnMgr::~TcpConnMgr()
-	{
-		_lock_guard_(m_lock);
-		for(auto p : m_conns){
-			p.second->Close();
-		}
-	}
-
-	// ************************************************************
-
 	TcpServer::TcpServer(io_ctx& ctx,IEventPoller* p):
 		m_acceptor(ctx),ptr_poller(p)
 	{
@@ -76,13 +26,11 @@ namespace AsioNet
 		doAccept();
 	}
 
-	// 当accept失败时，自动释放TcpServer资源
 	void TcpServer::doAccept()
 	{
 		m_acceptor.async_accept([self = shared_from_this()](const NetErr& ec, TcpSock cli) {
 			if (ec) { return; }
 
-			// 当client conn断开连接时，自动释放conn资源
 			auto conn = std::make_shared<TcpConn>(std::move(cli),self->ptr_poller);
 
 			conn->SetOwner(&(self->connMgr));
@@ -120,4 +68,28 @@ namespace AsioNet
 		return m_key;
 	}
 
+}
+
+namespace AsioNet
+{
+	std::shared_ptr<TcpServer> TcpServerMgr::GetServer(ServerKey k)
+	{
+		_lock_guard_(m_lock);
+		if(servers.find(k) != servers.end()){
+			return servers[k];
+		}
+		return nullptr;
+	}
+	void TcpServerMgr::AddServer(std::shared_ptr<TcpServer> s)
+	{
+		_lock_guard_(m_lock);
+		if(!s){
+			return;
+		}
+		if(servers.find(s->Key()) == servers.end()){
+			servers[s->Key()] = s;
+		}
+	}
+	TcpServerMgr::~TcpServerMgr()
+	{}
 }

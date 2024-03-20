@@ -6,15 +6,15 @@ namespace AsioNet
 	KcpConn::KcpConn(std::shared_ptr<UdpSock> sock,const UdpEndPoint& remote,IEventPoller* p,uint32_t conv) :
 		m_sock(sock),m_sender(remote),m_updater(sock->get_executor()), ptr_poller(p),m_conv(conv)
 	{
+		m_mode = KcpConnMode::KCM_SERVER;
 		init();
 		initKcp();
 	}
 
-	// client
 	KcpConn::KcpConn(io_ctx& ctx,IEventPoller* p):
 		m_updater(ctx), ptr_poller(p),m_conv(0)
 	{
-		m_sock = std::make_shared<UdpSock>(ctx);
+		m_mode = KcpConnMode::KCM_CLIENT;
 		init();
 	}
 
@@ -62,6 +62,7 @@ namespace AsioNet
 		}
 		m_conv = conv;
 		m_sender = UdpEndPoint(asio::ip::address::from_string(ip.c_str()),port);
+		m_sock = std::make_shared<UdpSock>(m_updater.get_executor());
 		m_sock->connect(m_sender);
 
 		initKcp();
@@ -70,13 +71,14 @@ namespace AsioNet
 		readLoop();
 
 		// 这里可以做成发一个协议过去验证成功并收到返回了才算成功
-		// 相当于要异步处理
+		// 即真异步
 		if(ptr_owner){
 			ptr_owner->AddConn(shared_from_this());
 		}
 		ptr_poller->PushConnect(Key(),ip,port);
 	}
 
+	// 服务器版的conn使用
 	// ikcp_update的时候才会调用
 	int KcpConn::kcpOutPutFunc(const char* buf, int len, ikcpcb* kcp, void* user)
 	{
@@ -88,9 +90,7 @@ namespace AsioNet
 		return !ec;
 	}
 
-	// 问题：
-	// 读，写操作都需要对整个kcp加锁
-	// 而kcp性能依赖于ikcp_update的实际效率
+	// 客户端版conn使用
 	void KcpConn::readLoop()
 	{
 		// udp包有界性，一次一定接受一个包，如果m_kcpBuffer不够，则只接受前面那段
@@ -126,13 +126,12 @@ namespace AsioNet
 		int recv = 0;
 		{
 			_lock_guard_(m_kcpLock);
-			if (!m_kcp) {	// closed
+			if (!m_kcp) {
 				return;
 			}
 
 			ikcp_input(m_kcp, data, trans);
 
-			// 这里其实用同一个buffer就行，input内部会把需要的数据拷贝走的，这里为了逻辑清楚点就用两个了
 			// 尝试从kcp里面获取一个包
 			recv = ikcp_recv(m_kcp, m_readBuffer, sizeof(m_readBuffer));
 		}
@@ -150,8 +149,7 @@ namespace AsioNet
 			err_handler();
 		}
 	}
-	// kcp-go用小根堆来管理多个kcp的update
-	// 这里先用asio自带的，性能不够再做优化
+
 	void KcpConn::KcpUpdate()
 	{
 		auto ticks = std::chrono::duration_cast<std::chrono::milliseconds>
@@ -178,7 +176,6 @@ namespace AsioNet
 		}
 
 		m_updater.expires_after(std::chrono::milliseconds(after - ticks));
-		// asio本身就是用小根堆去处理定时任务的(网上说的，我没看过)，所以就不像kcp-go里面那样自己实现了
 		m_updater.async_wait([self = shared_from_this()](const NetErr& ec) {
 			if (ec)
 			{
@@ -196,7 +193,6 @@ namespace AsioNet
 		Close();
 	}
 
-	// 一旦被关闭了，这个KcpConn就应该直接释放掉,只调用一次
 	void KcpConn::Close()
 	{
 		{
@@ -211,16 +207,16 @@ namespace AsioNet
 		}
 
 		if (ptr_owner) {
-			// 连接断开之后，外部需要彻底失去对conn的掌控，这样的话conn就会自动消亡
 			ptr_owner->DelConn(Key());
 		}
-		ptr_poller->PushDisconnect(Key(),m_sender.address().to_string(),m_sender.port());// 通知上层链接关闭了
+		ptr_poller->PushDisconnect(Key(),m_sender.address().to_string(),m_sender.port());
 
 		m_updater.cancel();
-		if(m_sock){
+		// 服务器模式下，多个conn使用同一个sock，不能关
+		if(m_mode == KcpConnMode::KCM_CLIENT && m_sock){
 			NetErr err;
 			m_sock->shutdown(asio::ip::tcp::socket::shutdown_both, err);
-			m_sock->close(err);	// 通知io_ctx，取消所有m_sock的异步操作
+			m_sock->close(err);
 		}
 		m_key = 0;
 	}
@@ -241,3 +237,78 @@ namespace AsioNet
 	}
 }
 
+namespace AsioNet
+{
+	void KcpConnMgr::DelConn(NetKey key)
+	{
+		_lock_guard_(m_lock);
+		auto itr = m_conns.find(key);
+		if (itr != m_conns.end())
+		{
+			auto conn = itr->second;
+			m_conns.erase(conn->Key());
+			m_connHelper.erase(conn->Remote());
+		}
+	}
+
+	void KcpConnMgr::AddConn(std::shared_ptr<KcpConn> conn)
+	{
+		_lock_guard_(m_lock);
+		if (!conn) {
+			return;
+		}
+		if (m_conns.find(conn->Key()) == m_conns.end()) {
+			m_conns[conn->Key()] = conn;
+			m_connHelper[conn->Remote()] = conn->Key();
+		}
+	}
+	
+	std::shared_ptr<KcpConn> KcpConnMgr::GetConn(NetKey k)
+	{
+		_lock_guard_(m_lock);
+		auto itr = m_conns.find(k);
+		if(itr != m_conns.end()){
+			return itr->second;
+		}
+		return nullptr;
+	}
+
+	std::shared_ptr<KcpConn> KcpConnMgr::GetConn(const UdpEndPoint& remote)
+	{
+		_lock_guard_(m_lock);
+		auto itr = m_connHelper.find(remote);
+		if (itr != m_connHelper.end()) {
+			auto conn = m_conns.find(itr->second);
+			if (conn != m_conns.end())
+			{
+				return conn->second;
+			}
+		}
+		return nullptr;
+	}
+
+	void KcpConnMgr::Disconnect(NetKey k)
+	{
+		_lock_guard_(m_lock);
+		auto itr = m_conns.find(k);
+		if (itr != m_conns.end()) {
+			itr->second->Close();
+		}
+	}
+
+	void KcpConnMgr::Broadcast(const char* data,size_t trans)
+	{
+		_lock_guard_(m_lock);
+		for(auto p : m_conns){
+			p.second->Write(data,trans);
+		}
+	}
+
+	KcpConnMgr::~KcpConnMgr()
+	{
+		_lock_guard_(m_lock);
+		for(auto p : m_conns){
+			p.second->Close();
+		}
+	}
+}

@@ -34,12 +34,6 @@ namespace AsioNet
 		m_close = false;	// 默认开启
 	}
 
-	// 保证连接建立之后，外部才能拿到conn,才能Write
-	// 连接断开之后，外部将失去conn，从而无法write
-
-	// 保证连接建立之后，外部才能拿到conn,才能Write
-// 连接断开之后，外部将失去conn，从而无法write
-
 	bool TcpConn::Write(const char* data, size_t trans)
 	{
 		if (trans > AN_MSG_MAX_SIZE || trans <= 0)
@@ -53,8 +47,9 @@ namespace AsioNet
 		_lock_guard_(m_sendLock);
 		m_sendBuffer.Push((const char*)(&netLen), sizeof(AN_Msg::len));
 		m_sendBuffer.Push(data, trans);
-		auto head = m_sendBuffer.DetachHead();
-		if (head)
+		// 可能有数据正在发送中，那么这次只要把数据放进去就行，借用write_handler进行继续发送
+		auto head = m_sendBuffer.DetachHead();	
+		if (head)	
 		{
 			asio::async_write(m_sock, asio::buffer(head->buffer, head->wpos),
 				std::bind(&TcpConn::write_handler, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
@@ -73,7 +68,7 @@ namespace AsioNet
 		_lock_guard_(m_sendLock);
 		m_sendBuffer.FreeDeatched();
 		auto head = m_sendBuffer.DetachHead();
-		if (head)
+		if (head)	// 有数据就继续发
 		{
 			async_write(m_sock, asio::buffer(head->buffer, head->wpos),
 				std::bind(&TcpConn::write_handler, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
@@ -91,7 +86,7 @@ namespace AsioNet
 			bind(&TcpConn::read_handler, shared_from_this(), std::placeholders::_1, std::placeholders::_2));
 	}
 
-	// 同一时刻只会存在一个读/写异步任务存在
+	// read实际就是单线程的运行的
 	void TcpConn::read_handler(const NetErr& ec, size_t)
 	{
 		if (ec)
@@ -117,12 +112,14 @@ namespace AsioNet
 			});
 	}
 
-	void TcpConn::err_handler()	// 关闭socket，错误输出
+	// 错误处理
+	void TcpConn::err_handler()	
 	{
-		Close();	// 关闭链接
+		// 关闭链接
+		Close();
 	}
 
-	// 一旦被关闭了，这个TcpConn就应该直接释放掉,只能调用一次
+	// 关闭连接，只会调用一次
 	void TcpConn::Close()
 	{
 		{
@@ -137,16 +134,18 @@ namespace AsioNet
 		}
 
 		if (ptr_owner) {
-			// 连接断开之后，外部需要彻底失去对conn的掌控
+			// 连接断开之后，外部最好彻底失去对conn的掌控			
 			ptr_owner->DelConn(Key());
 		}
 		
 		NetErr err;
 		auto remote = m_sock.remote_endpoint(err);
-		ptr_poller->PushDisconnect(Key(),remote.address().to_string(), remote.port());// 通知上层链接关闭了
+		// 通知上层链接关闭了
+		ptr_poller->PushDisconnect(Key(),remote.address().to_string(), remote.port());
 
+		// 通知io_ctx，取消所有m_sock的异步操作
 		m_sock.shutdown(asio::ip::tcp::socket::shutdown_both, err);
-		m_sock.close(err);	// 通知io_ctx，取消所有m_sock的异步操作
+		m_sock.close(err);	
 
 		{
 			// 如果write_handler出错调用Close释放了m_readBuffer，那么处在read_handler里面的m_readBuffer是不安全的
@@ -171,10 +170,9 @@ namespace AsioNet
 				}
 				return;
 			}
-			// 只有成功建立了之后，外部才能拿到conn
-			// 这里的顺序同accept_handler
+			// 成功连接，通知上层
 			if (self->ptr_owner) {
-				self->ptr_owner->AddConn(self);	// 外部不应该保存多份
+				self->ptr_owner->AddConn(self);
 			}
 			self->ptr_poller->PushConnect(self->Key(), ip, port);
 			self->StartRead();
@@ -200,3 +198,53 @@ namespace AsioNet
 
 }
 
+namespace AsioNet
+{
+	std::shared_ptr<TcpConn> TcpConnMgr::GetConn(NetKey k)
+	{
+		_lock_guard_(m_lock);
+		if(m_conns.find(k) != m_conns.end()){
+			return m_conns[k];
+		}
+		return nullptr;
+	}
+	void TcpConnMgr::DelConn(NetKey k)
+	{
+		_lock_guard_(m_lock);
+		m_conns.erase(k);
+	}
+	
+	void TcpConnMgr::Disconnect(NetKey k)
+	{
+		_lock_guard_(m_lock);
+		auto itr = m_conns.find(k);
+		if (itr != m_conns.end()) {
+			itr->second->Close();
+		}
+	}
+	void TcpConnMgr::AddConn(std::shared_ptr<TcpConn> conn)
+	{
+		_lock_guard_(m_lock);
+		if(!conn){
+			return;
+		}
+		if(m_conns.find(conn->Key()) == m_conns.end()){
+			m_conns[conn->Key()] = conn;
+		}
+	}
+	void TcpConnMgr::Broadcast(const char* data,size_t trans)
+	{
+		_lock_guard_(m_lock);
+		for(auto p : m_conns){
+			p.second->Write(data,trans);
+		}
+	}
+	TcpConnMgr::~TcpConnMgr()
+	{
+		_lock_guard_(m_lock);
+		for(auto p : m_conns){
+			p.second->Close();
+		}
+	}
+
+}

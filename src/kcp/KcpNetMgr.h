@@ -6,16 +6,6 @@
 
 namespace AsioNet
 {
-    class KcpServerMgr{
-    public:
-      std::shared_ptr<KcpServer> GetServer(ServerKey);
-      void AddServer(std::shared_ptr<KcpServer>);
-      ~KcpServerMgr();
-    private:
-      std::mutex m_lock;
-      std::unordered_map<ServerKey,std::shared_ptr<KcpServer>> servers;
-    };
-
     // 注意：kcp这边断连判定需要心跳去解决，交给应用层去解决更为合理
     class KcpNetMgr {
     public:

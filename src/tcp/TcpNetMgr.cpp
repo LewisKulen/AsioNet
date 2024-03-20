@@ -3,30 +3,6 @@
 
 namespace AsioNet
 {
-// ************************************************
-	std::shared_ptr<TcpServer> TcpServerMgr::GetServer(ServerKey k)
-	{
-		_lock_guard_(m_lock);
-		if(servers.find(k) != servers.end()){
-			return servers[k];
-		}
-		return nullptr;
-	}
-	void TcpServerMgr::AddServer(std::shared_ptr<TcpServer> s)
-	{
-		_lock_guard_(m_lock);
-		if(!s){
-			return;
-		}
-		if(servers.find(s->Key()) == servers.end()){
-			servers[s->Key()] = s;
-		}
-	}
-	TcpServerMgr::~TcpServerMgr()
-	{}
-
-// ************************************************
-
 	TcpNetMgr::TcpNetMgr(size_t th_num) :m_isClose(false)
 	{
 		for (size_t i = 0; i < th_num; i++)
@@ -38,11 +14,11 @@ namespace AsioNet
 					{
 						break;
 					}
-					self->m_ctx.run();	// 只要有io事件，这个Run就不会返回
+					// 只要有事件在里面，这个run就不会返回，除非stop
+					self->m_ctx.run();
 					std::this_thread::sleep_for(std::chrono::milliseconds(1));
 				} 
 			}));
-			thPool.back().detach();
 		}
 	}
 
@@ -50,6 +26,11 @@ namespace AsioNet
 	{
 		// 通知线程退出
 		m_isClose = true;
+		m_ctx.stop();
+		// 等待线程退出
+		for(auto& th : thPool){
+			th.join();
+		}
 	}
 
 	void TcpNetMgr::Connect(IEventPoller* poller,const std::string& ip, uint16_t port,int retry/*,options*/)

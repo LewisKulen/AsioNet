@@ -50,7 +50,7 @@ namespace AsioNet
 			if (trans < 4) {
 				return false;
 			}
-			msgid = *((uint16_t*)bytes);
+			msgid = *((uint16_t*)(bytes));
 			flag = *((uint16_t*)(bytes + 2));
 			data = bytes + 4;
 			datalen = trans - 4;
@@ -77,11 +77,11 @@ namespace AsioNet
 	using GooglePbLite = google::protobuf::MessageLite;
 
 	// EventDriver和业务逻辑应该是强关联的
-	class EventDriver : public IEventPoller
+	class EventDriver final: public IEventPoller
 	{
 	public:
 		EventDriver();
-		~EventDriver();
+		~EventDriver() override;
 
 		// 衔接底层的接口
 		void PushAccept(NetKey k, const std::string& ip, uint16_t port) override;
