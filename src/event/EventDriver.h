@@ -20,51 +20,6 @@ namespace AsioNet
 		UNKNOWN_MSG_ID,
 		PRASE_PB_ERR,
 	};
-	// 顺序不要换，有用的
-	enum class EventType
-	{
-		Accept = 0,
-		Connect,
-		Disconnect,
-		Recv,
-		Error,
-	};
-
-	
-	struct NetEvent
-	{
-		NetKey key;
-		EventType type;
-		std::string ip;
-		uint16_t port;
-	};
-
-	class Package {
-	public:
-		Package()
-		{
-			memset(this, 0, sizeof(Package));
-		}
-		bool Unpack(char* bytes, size_t trans)
-		{
-			if (trans < 4) {
-				return false;
-			}
-			msgid = *((uint16_t*)(bytes));
-			flag = *((uint16_t*)(bytes + 2));
-			data = bytes + 4;
-			datalen = trans - 4;
-			return true;
-		}
-		uint16_t GetMsgID() const { return msgid; }
-		uint16_t GetFlag() const { return flag; }
-		const char* GetData() const { return data; }
-		size_t GetDataLen() const { return datalen; }
-	private:
-		uint16_t msgid, flag;
-		char* data;
-		size_t datalen;
-	};
 
 	template<class HANDLER, class ...Args>
 	constexpr bool check_functor_v =
@@ -89,7 +44,6 @@ namespace AsioNet
 		void PushDisconnect(NetKey k, const std::string& ip, uint16_t port) override;
 		void PushRecv(NetKey k, const char* data, size_t trans) override;
 
-		// *********************** 实际对外的方法 **************************
 		// 取出一个Event并交给特定的处理器
 		bool RunOne();
 
@@ -136,6 +90,7 @@ namespace AsioNet
 					HANDLER{}(user,key, ip, port);
 				});
 		}
+
 		template<typename HANDLER>
 		void RegisterConnectHandler(void* user)
 		{
@@ -146,6 +101,7 @@ namespace AsioNet
 					HANDLER{}(user,key, ip, port);
 				});
 		}
+
 		template<typename HANDLER>
 		void RegisterDisconnectHandler(void* user)
 		{
@@ -156,6 +112,7 @@ namespace AsioNet
 					HANDLER{}(user,key, ip, port);
 				});
 		}
+
 		template<typename HANDLER>
 		void RegisterErrHandler(void* user)
 		{
@@ -166,6 +123,52 @@ namespace AsioNet
 					HANDLER{}(user,key, ec);
 				});
 		}
+
+	protected:
+		// 内部使用类
+		enum class EventType
+		{
+			Accept = 0,
+			Connect,
+			Disconnect,
+			Recv,
+			Error,
+		};
+		
+		struct NetEvent
+		{
+			NetKey key;
+			EventType type;
+			std::string ip;
+			uint16_t port;
+		};
+
+		class Package {
+		public:
+			Package()
+			{
+				memset(this, 0, sizeof(Package));
+			}
+			bool Unpack(char* bytes, size_t trans)
+			{
+				if (trans < 4) {
+					return false;
+				}
+				msgid = *((uint16_t*)(bytes));
+				flag = *((uint16_t*)(bytes + 2));
+				data = bytes + 4;
+				datalen = trans - 4;
+				return true;
+			}
+			uint16_t GetMsgID() const { return msgid; }
+			uint16_t GetFlag() const { return flag; }
+			const char* GetData() const { return data; }
+			size_t GetDataLen() const { return datalen; }
+		private:
+			uint16_t msgid, flag;
+			char* data;
+			size_t datalen;
+		};
 
 	private:
 		std::mutex m_lock;

@@ -1,59 +1,56 @@
 # AsioNet
 
+## 简介
 
+闲着没事干写的网络库，基于Asio开发，支持TCP和KCP。功能很原始。
 
-- 简介
+-   参考资料
+    1.   https://github.com/libinzhangyuan/asio_kcp
+    2.   https://pkg.go.dev/github.com/xtaci/kcp-go 
+    3.   https://luyuhuang.tech/2020/12/09/kcp.html 
+    4.   https://www.boost.org/doc/libs/1_84_0/doc/html/boost_asio/reference/ip__tcp/socket.html 
+
+-   设计原则
+
+1.   代码是给人看的，因此均使用简单的模板实现
+2.   尽量使用面向对象编程，因此Handler被约定成仿函数
+
+期待你的出宝贵建议~
+
+## 项目构建
+
+-   包管理工具:VCPKG
+
+-   项目依赖:见vcpkg.json
+
+-   语言版本:C++17以上
+
+-   搭建
 
 ```c++
-包管理工具：vcpkg
-项目依赖：vcpkg.json
-编译器版本：c++17及以上
-    
-特性：
-    1.x64
-    2.跨平台
-    3.支持Tcp和Kcp(kcp还在实现中)
-    4.封装asio
+1.   vs2022+vcpkg
+         vs2022里自带vcpkg，使用vcpkg的manifest模式，vcpkg integrate install 集成到项目，然后编译运行即可
+2.   vscode+vcpkg+cmake
+         1.下载vscode扩展：C/C++,CMake,CMake Tool
+         2.由于我的编译器是mingw，你只需要修改.vscode中的部分就可以
+```
 
-    
-设计原则：
-    1.代码是给人看的，因此均使用简单的模板实现
-    2.尽量使用面向对象编程，因此Handler被约定成仿函数
-    3.现代计算机，性能已经强了很多，不差虚函数/std::function这种开销，适度的抽象，解耦是有必要的
- 
+## 架构简图
+
+```c++
+
 /*
 Tcp
     TcpNetMgr---------
       | 			|
       v 			v
-    TcpServer ----> TcpConn	----> IEventPoller ----> EventDriver ----> Handler
+    TcpServer ----> TcpConn	----> IEventPoller ----> EventDriver（自己实现的一个，你可以自己实现）
     
-    TcpConn
-    	实现原理:封装asio
-    	
-    EventDriver：
-    	实现原理:模板+std::function,单线程
-
-
-Kcp
-	KcpSock ----> KcpClient
-	   |
-	KcpServer 
+Kcp结构同上
 */
-        	
-   
-    
-测试代码均在src/test文件夹下
 
 ```
 
--   环境搭建
+## 已知问题
 
-```c++
-1.vs2022+vcpkg
-    vs2022里自带vcpkg，使用vcpkg的manifest模式，vcpkg integrate install 集成到项目，然后编译运行即可
-2.vscode+vcpkg+cmake
-    1.下载vscode扩展：C/C++,CMake,CMake Tool
-    2.由于我的编译器是mingw，你只需要修改.vscode中的部分就可以
-```
-
+1.   kcp的断连无法立刻知晓，需要新增心跳

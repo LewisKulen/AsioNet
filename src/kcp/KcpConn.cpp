@@ -34,7 +34,7 @@ namespace AsioNet
 		assert(m_conv);
         m_kcp = ikcp_create(m_conv,this/*user*/);
 		m_kcp->output = &KcpConn::kcpOutPutFunc;	// ikcp_setoutput(m_kcp,&kcpOutPutFunc);
-		ikcp_nodelay(m_kcp, 1, 2, 1, 0);
+		ikcp_nodelay(m_kcp, 1, 10, 2, 1);
 		ikcp_setmtu(m_kcp,IKCP_MTU);
 	}
 
