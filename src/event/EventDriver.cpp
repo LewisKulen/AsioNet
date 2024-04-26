@@ -61,7 +61,7 @@ namespace AsioNet
 		switch (e.type) {
 		case EventType::Recv:
 		{
-			// 所以可以以效率最高的方式获取数据，减少拷贝
+			// 以效率最高的方式获取数据，减少拷贝
 			auto [data, len] = m_recvBuffer.PopUnsafe();
 
 			Package pkg;
@@ -73,8 +73,12 @@ namespace AsioNet
 			auto itr = m_routers.find(pkg.GetMsgID());
 			if (itr != m_routers.end())
 			{
-				auto& f = itr->second;
-				f(e.key, pkg);
+				auto& caller = itr->second;
+				EventErrCode ec = caller.func(caller.user,e.key, pkg);
+				if (ec != EventErrCode::SUCCESS)
+				{
+					m_errHandler(e.key, ec);
+				}
 			}
 			else
 			{

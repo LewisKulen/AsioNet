@@ -4,28 +4,26 @@
 
 闲着没事干写的网络库，基于Asio开发，支持TCP和KCP。功能很原始。
 
--   参考资料
-    1.   https://github.com/libinzhangyuan/asio_kcp
-    2.   https://pkg.go.dev/github.com/xtaci/kcp-go 
-    3.   https://luyuhuang.tech/2020/12/09/kcp.html 
-    4.   https://www.boost.org/doc/libs/1_84_0/doc/html/boost_asio/reference/ip__tcp/socket.html 
+- 参考资料
 
--   设计原则
+1. https://github.com/libinzhangyuan/asio_kcp
+2. https://pkg.go.dev/github.com/xtaci/kcp-go
+3. https://luyuhuang.tech/2020/12/09/kcp.html
+4. https://www.boost.org/doc/libs/1_84_0/doc/html/boost_asio/reference/ip__tcp/socket.html
 
-1.   代码是给人看的，因此均使用简单的模板实现
-2.   尽量使用面向对象编程，因此Handler被约定成仿函数
+- 设计原则
+
+1. 代码是给人看的，因此均使用简单的模板实现
+2. 尽量使用面向对象编程，因此Handler被约定成仿函数
 
 期待你的出宝贵建议~
 
 ## 项目构建
 
--   包管理工具:VCPKG
-
--   项目依赖:见vcpkg.json
-
--   语言版本:C++17以上
-
--   搭建
+- 包管理工具:VCPKG
+- 项目依赖:见vcpkg.json
+- 语言版本:C++17以上
+- 搭建
 
 ```c++
 1.   vs2022+vcpkg
@@ -38,19 +36,18 @@
 ## 架构简图
 
 ```c++
-
-/*
 Tcp
     TcpNetMgr---------
       | 			|
       v 			v
-    TcpServer ----> TcpConn	----> IEventPoller ----> EventDriver（自己实现的一个，你可以自己实现）
-    
+    TcpServer ----> TcpConn	----> IEventPoller ----> EventDriver
+  
 Kcp结构同上
-*/
 
+EventDriver是我自己实现的IEventPoller的一个实例
 ```
 
 ## 已知问题
 
-1.   kcp的断连无法立刻知晓，需要新增心跳
+1. kcp的断连无法立刻知晓，需要新增心跳 × 根据实际经验来看，心跳实现在应用层会少很多不必要的麻烦，故不在库里面增加心跳了（无论TCP和KCP，都建议使用者自己增加心跳）
+2. kcp内存分配，如果你不喜欢默认的，可以自己加

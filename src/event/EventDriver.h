@@ -16,6 +16,7 @@ namespace AsioNet
 {
 	enum class EventErrCode
 	{
+		SUCCESS,
 		RECV_ERR,
 		UNKNOWN_MSG_ID,
 		PRASE_PB_ERR,
@@ -34,6 +35,71 @@ namespace AsioNet
 	// EventDriver和业务逻辑应该是强关联的
 	class EventDriver final: public IEventPoller
 	{
+		// 内部使用类
+		enum class EventType
+		{
+			Accept = 0,
+			Connect,
+			Disconnect,
+			Recv,
+			Error,
+		};
+		
+		struct NetEvent
+		{
+			NetKey key;
+			EventType type;
+			std::string ip;
+			uint16_t port;
+		};
+
+		class Package {
+		public:
+			Package()
+			{
+				memset(this, 0, sizeof(Package));
+			}
+			bool Unpack(char* bytes, size_t trans)
+			{
+				if (trans < 4) {
+					return false;
+				}
+				msgid = *((uint16_t*)(bytes));
+				flag = *((uint16_t*)(bytes + 2));
+				data = bytes + 4;
+				datalen = trans - 4;
+				return true;
+			}
+			uint16_t GetMsgID() const { return msgid; }
+			uint16_t GetFlag() const { return flag; }
+			const char* GetData() const { return data; }
+			size_t GetDataLen() const { return datalen; }
+		private:
+			uint16_t msgid, flag;
+			char* data;
+			size_t datalen;
+		};
+
+		template<typename HANDLER, typename PB>
+		static EventErrCode wrapped_event_handler(void* user,NetKey key, const Package& pkg)
+		{
+			// 模板参数检查
+			static_assert(std::is_base_of_v<GooglePbLite, PB>, "not a protobuf");
+			static_assert(check_functor_v<HANDLER, void*,NetKey, const PB&>,
+				"functor need && token is: void(NetKey,const GooglePbLite&)");
+
+			// 对所有协议都需要的操作请在这里操作
+			PB pb;
+			if (!pb.ParseFromArray(pkg.GetData(), pkg.GetDataLen()))
+			{
+				return EventErrCode::PRASE_PB_ERR;
+			}
+
+			// must be a functor
+			HANDLER{}(user, key, pb);
+			return EventErrCode::SUCCESS;
+		}
+
 	public:
 		EventDriver();
 		~EventDriver() override;
@@ -59,25 +125,12 @@ namespace AsioNet
 		template<typename HANDLER, typename PB>
 		void AddRouter(void* user, uint16_t msgID)
 		{
-			// 模板参数检查
-			static_assert(std::is_base_of_v<GooglePbLite, PB>, "not a protobuf");
-			// 实现过check_function_v
-			static_assert(check_functor_v<HANDLER, void*,NetKey, const PB&>,
-				"functor need && token is: void(NetKey,const GooglePbLite&)");
-
-			m_routers[msgID] = std::function(
-				[this, user](NetKey key, const Package& pkg)->void {
-					// 对所有协议都需要的操作请在这里操作
-					PB pb;
-					if (!pb.ParseFromArray(pkg.GetData(), pkg.GetDataLen()))
-					{
-						this->m_errHandler(key, EventErrCode::PRASE_PB_ERR);
-						return;
-					}
-
-					// must be a functor
-					HANDLER{}(user, key, pb);
-				});
+			EventCaller caller;
+			caller.func = &wrapped_event_handler<HANDLER,PB>;
+			caller.user = user;
+			m_routers[msgID] = caller;
+			// 你也可以使用lambda + function实现该功能
+			// 我这里为了效率，决定自己实现一个极简版的
 		}
 
 		template<typename HANDLER>
@@ -124,59 +177,17 @@ namespace AsioNet
 				});
 		}
 
-	protected:
-		// 内部使用类
-		enum class EventType
-		{
-			Accept = 0,
-			Connect,
-			Disconnect,
-			Recv,
-			Error,
-		};
-		
-		struct NetEvent
-		{
-			NetKey key;
-			EventType type;
-			std::string ip;
-			uint16_t port;
-		};
-
-		class Package {
-		public:
-			Package()
-			{
-				memset(this, 0, sizeof(Package));
-			}
-			bool Unpack(char* bytes, size_t trans)
-			{
-				if (trans < 4) {
-					return false;
-				}
-				msgid = *((uint16_t*)(bytes));
-				flag = *((uint16_t*)(bytes + 2));
-				data = bytes + 4;
-				datalen = trans - 4;
-				return true;
-			}
-			uint16_t GetMsgID() const { return msgid; }
-			uint16_t GetFlag() const { return flag; }
-			const char* GetData() const { return data; }
-			size_t GetDataLen() const { return datalen; }
-		private:
-			uint16_t msgid, flag;
-			char* data;
-			size_t datalen;
-		};
-
 	private:
 		std::mutex m_lock;
 		std::queue<NetEvent> m_events;
 		BlockBuffer<AN_MSG_MAX_SIZE, 2> m_recvBuffer;
 
-		std::unordered_map<uint16_t,
-			std::function<void(NetKey, const Package&)>> m_routers;
+		struct EventCaller{
+			EventCaller():func(nullptr),user(nullptr){}
+			EventErrCode(*func)(void* user,NetKey, const Package&);
+			void* user;
+		};
+		std::unordered_map<uint16_t,EventCaller> m_routers;
 
 		std::function<void(NetKey, std::string, uint16_t)> m_handler[3];
 		std::function <void(NetKey, EventErrCode)> m_errHandler;
