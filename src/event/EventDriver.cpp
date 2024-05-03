@@ -74,7 +74,7 @@ namespace AsioNet
 			if (itr != m_routers.end())
 			{
 				auto& caller = itr->second;
-				EventErrCode ec = caller.func(caller.user,e.key, pkg);
+				EventErrCode ec = (this->*(caller.func))(caller.user,e.key, pkg);
 				if (ec != EventErrCode::SUCCESS)
 				{
 					m_errHandler(e.key, ec);

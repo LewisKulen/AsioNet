@@ -81,7 +81,7 @@ namespace AsioNet
 		};
 
 		template<typename HANDLER, typename PB>
-		static EventErrCode wrapped_event_handler(void* user,NetKey key, const Package& pkg)
+		EventErrCode wrapped_event_handler(void* user,NetKey key, const Package& pkg)
 		{
 			// 模板参数检查
 			static_assert(std::is_base_of_v<GooglePbLite, PB>, "not a protobuf");
@@ -126,7 +126,7 @@ namespace AsioNet
 		void AddRouter(void* user, uint16_t msgID)
 		{
 			EventCaller caller;
-			caller.func = &wrapped_event_handler<HANDLER,PB>;
+			caller.func = &EventDriver::wrapped_event_handler<HANDLER,PB>;
 			caller.user = user;
 			m_routers[msgID] = caller;
 			// 你也可以使用lambda + function实现该功能
@@ -184,7 +184,7 @@ namespace AsioNet
 
 		struct EventCaller{
 			EventCaller():func(nullptr),user(nullptr){}
-			EventErrCode(*func)(void* user,NetKey, const Package&);
+			EventErrCode(EventDriver::*func)(void* user,NetKey, const Package&);
 			void* user;
 		};
 		std::unordered_map<uint16_t,EventCaller> m_routers;
